@@ -1,12 +1,23 @@
 "use client"
 
 import { useState } from "react"
+import { usePathname } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
 import { Navbar } from "@/components/navbar"
 import { cn } from "@/lib/utils"
 
+// Routes that render full-bleed, without the dashboard chrome.
+const chromelessPrefixes = ["/auth", "/onboarding"]
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const pathname = usePathname()
+
+  const chromeless = chromelessPrefixes.some((p) => pathname.startsWith(p))
+
+  if (chromeless) {
+    return <>{children}</>
+  }
 
   return (
     <div className="flex min-h-screen bg-background">

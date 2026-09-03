@@ -11,9 +11,9 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'SkillBridge — AI Skill-to-Job Intelligence',
+  title: 'Skillora — Skill-to-Job Intelligence Platform',
   description:
-    'SkillBridge analyzes your skill gaps, builds a personalized learning roadmap, and matches you to jobs you are ready for.',
+    'From skill gaps to employment readiness. Skillora analyzes your skill gaps, builds a personalized learning roadmap, and matches you to jobs you are ready for.',
   generator: 'v0.app',
   icons: {
     icon: [
