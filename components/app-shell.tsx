@@ -1,12 +1,21 @@
 "use client"
 
 import { useState } from "react"
+import { usePathname } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
 import { Navbar } from "@/components/navbar"
 import { cn } from "@/lib/utils"
 
+// Routes that render standalone (no sidebar / navbar chrome).
+const FULLSCREEN_ROUTES = ["/login", "/signup", "/onboarding"]
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const pathname = usePathname()
+
+  if (FULLSCREEN_ROUTES.some((r) => pathname.startsWith(r))) {
+    return <div className="min-h-screen bg-background">{children}</div>
+  }
 
   return (
     <div className="flex min-h-screen bg-background">

@@ -1,6 +1,11 @@
-// Central mock data source for the SkillBridge prototype.
+// Central mock data source for the Skillora prototype.
 // Shaped to mirror likely API responses so screens can swap to real
 // endpoints later without structural changes.
+//
+// AI (Gemini) is intended to power qualitative reasoning — assessment,
+// skill extraction, explanations. All quantitative values below (readiness,
+// gaps, coverage) are produced by the deterministic engine in
+// `lib/skill-engine.ts`, never by a model.
 
 export type SkillStatus = "mastered" | "in-progress" | "gap"
 
@@ -97,12 +102,35 @@ export const allSkills = [
 export const user = {
   name: "Aarav Sharma",
   initials: "AS",
+  email: "aarav.sharma@demo.skillora.in",
   targetRole: "Backend Engineer",
   experience: "Intermediate",
-  jobReadiness: 68,
-  skillsMastered: 9,
-  skillGaps: 4,
-  learningProgress: 54,
+  jobReadiness: 78,
+  skillsMastered: 8,
+  skillsRequired: 11,
+  skillGaps: 2,
+  recommendedJobs: 14,
+  learningProgress: 42,
+}
+
+// Default profile used for the always-on demo environment (no login required).
+export const demoProfile = {
+  name: "Aarav Sharma",
+  email: "aarav.sharma@demo.skillora.in",
+  userType: "student" as const,
+  targetRole: "Backend Engineer",
+  skills: [
+    "Python",
+    "SQL",
+    "Git",
+    "DSA",
+    "REST APIs",
+    "Linux",
+    "Java",
+    "PostgreSQL",
+  ],
+  isDemo: true,
+  onboarded: true,
 }
 
 export const skills: Skill[] = [
@@ -351,3 +379,167 @@ export const readinessBreakdown = {
   recommendation:
     "You are strongly aligned on core backend skills. Close the AWS and System Design gaps to move from 78% to interview-ready (90%+).",
 }
+
+// ---------------------------------------------------------------------------
+// Skill Intelligence: role requirements + category coverage
+// ---------------------------------------------------------------------------
+
+export type SkillCategory =
+  | "Programming"
+  | "Backend Development"
+  | "Databases"
+  | "DevOps"
+  | "System Design"
+  | "CS Fundamentals"
+
+export type RequiredSkill = {
+  name: string
+  category: SkillCategory
+  required: number // 0-5 level the target role expects
+}
+
+// Target role requirement matrix (Backend Engineer demo).
+// Levels are 0-5 to match how requirements are usually expressed in role rubrics.
+export const roleRequirements: RequiredSkill[] = [
+  { name: "Python", category: "Programming", required: 4 },
+  { name: "Java", category: "Programming", required: 3 },
+  { name: "DSA", category: "CS Fundamentals", required: 4 },
+  { name: "Computer Networks", category: "CS Fundamentals", required: 3 },
+  { name: "REST APIs", category: "Backend Development", required: 4 },
+  { name: "Node.js", category: "Backend Development", required: 3 },
+  { name: "SQL", category: "Databases", required: 4 },
+  { name: "PostgreSQL", category: "Databases", required: 3 },
+  { name: "Redis", category: "Databases", required: 3 },
+  { name: "Docker", category: "DevOps", required: 4 },
+  { name: "AWS", category: "DevOps", required: 4 },
+  { name: "System Design", category: "System Design", required: 4 },
+]
+
+// Current, assessment-derived levels for the demo user (0-5).
+export const userSkillLevels: Record<string, number> = {
+  Python: 4,
+  Java: 3,
+  DSA: 4,
+  "Computer Networks": 2,
+  "REST APIs": 4,
+  "Node.js": 2,
+  SQL: 4,
+  PostgreSQL: 3,
+  Redis: 1,
+  Docker: 2,
+  AWS: 1,
+  "System Design": 1,
+  Git: 4,
+  Linux: 4,
+}
+
+export type PriorityGap = {
+  rank: number
+  skill: string
+  currentLevel: number
+  requiredLevel: number
+  priority: "High" | "Medium" | "Low"
+  reason: string
+}
+
+export const priorityGaps: PriorityGap[] = [
+  {
+    rank: 1,
+    skill: "AWS",
+    currentLevel: 1,
+    requiredLevel: 4,
+    priority: "High",
+    reason: "Required by 7 of your target jobs",
+  },
+  {
+    rank: 2,
+    skill: "System Design",
+    currentLevel: 1,
+    requiredLevel: 4,
+    priority: "High",
+    reason: "Frequently required for backend engineering roles",
+  },
+  {
+    rank: 3,
+    skill: "Docker",
+    currentLevel: 2,
+    requiredLevel: 4,
+    priority: "Medium",
+    reason: "Expected for containerized deployment workflows",
+  },
+  {
+    rank: 4,
+    skill: "Redis",
+    currentLevel: 1,
+    requiredLevel: 3,
+    priority: "Low",
+    reason: "Useful for caching-heavy services",
+  },
+]
+
+// AI-authored qualitative insight (Why / What / Next). Deterministic values
+// are injected by the engine, the narrative framing is the AI's contribution.
+export const aiInsight = {
+  headline:
+    "Your strongest foundation is in programming fundamentals and databases.",
+  why: "You demonstrate consistent, verified strength across Python, SQL, PostgreSQL and data structures — the core of backend engineering.",
+  what: "Your biggest employability gap is deployment and cloud infrastructure: AWS and Docker sit well below role requirements, and System Design is untested.",
+  next: "Closing AWS + Docker could unlock additional matching roles and move you from 78% to interview-ready.",
+}
+
+export type LearningStep = {
+  order: number
+  title: string
+  closes: string
+  hours: number
+  difficulty: "Beginner" | "Intermediate" | "Advanced"
+  impact: "High" | "Medium" | "Low"
+  readinessGain: number
+}
+
+// Learning path derived from the priority gaps (highest impact first).
+export const learningPath: LearningStep[] = [
+  {
+    order: 1,
+    title: "Docker Fundamentals",
+    closes: "Docker",
+    hours: 3,
+    difficulty: "Beginner",
+    impact: "High",
+    readinessGain: 5,
+  },
+  {
+    order: 2,
+    title: "AWS Essentials for Developers",
+    closes: "AWS",
+    hours: 6,
+    difficulty: "Intermediate",
+    impact: "High",
+    readinessGain: 8,
+  },
+  {
+    order: 3,
+    title: "Scalable System Design",
+    closes: "System Design",
+    hours: 8,
+    difficulty: "Advanced",
+    impact: "Medium",
+    readinessGain: 6,
+  },
+]
+
+export type JourneyStage = {
+  label: string
+  status: "done" | "current" | "upcoming"
+  future?: boolean
+}
+
+export const employmentJourney: JourneyStage[] = [
+  { label: "Assessment", status: "done" },
+  { label: "Learning", status: "done" },
+  { label: "Skills Improved", status: "done" },
+  { label: "Job Matched", status: "current" },
+  { label: "Application", status: "upcoming", future: true },
+  { label: "Interview", status: "upcoming", future: true },
+  { label: "Placed", status: "upcoming", future: true },
+]

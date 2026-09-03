@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import { AppShell } from '@/components/app-shell'
+import { ProfileProvider } from '@/lib/profile-context'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
@@ -11,9 +12,9 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'SkillBridge — AI Skill-to-Job Intelligence',
+  title: 'Skillora — Skill-to-Job Intelligence Platform',
   description:
-    'SkillBridge analyzes your skill gaps, builds a personalized learning roadmap, and matches you to jobs you are ready for.',
+    'From skill gaps to employment readiness. Skillora analyzes your skills against real role requirements, builds a personalized learning path, and shows exactly which jobs you are ready for.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -35,11 +36,8 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'light dark',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'white' },
-    { media: '(prefers-color-scheme: dark)', color: 'black' },
-  ],
+  colorScheme: 'light',
+  themeColor: '#ffffff',
 }
 
 export default function RootLayout({
@@ -50,10 +48,13 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${jetbrainsMono.variable} bg-background`}
+      className={`light ${inter.variable} ${jetbrainsMono.variable} bg-background`}
+      style={{ colorScheme: 'light' }}
     >
       <body className="font-sans antialiased">
-        <AppShell>{children}</AppShell>
+        <ProfileProvider>
+          <AppShell>{children}</AppShell>
+        </ProfileProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
