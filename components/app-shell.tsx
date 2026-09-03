@@ -1,12 +1,61 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
 import { Navbar } from "@/components/navbar"
+import { LogoMark } from "@/components/logo"
+import { useAuth } from "@/components/auth-provider"
 import { cn } from "@/lib/utils"
 
+const PUBLIC_ROUTES = ["/login", "/signup"]
+const ONBOARDING_ROUTE = "/onboarding"
+
+function Splash() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-3">
+        <div className="flex size-11 animate-pulse items-center justify-center rounded-md bg-primary p-2 text-primary-foreground">
+          <LogoMark />
+        </div>
+        <p className="text-sm text-muted-foreground">Loading Skillora…</p>
+      </div>
+    </div>
+  )
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth()
+  const pathname = usePathname()
+  const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  const isPublic = PUBLIC_ROUTES.includes(pathname)
+  const isOnboarding = pathname === ONBOARDING_ROUTE
+
+  useEffect(() => {
+    if (loading) return
+    if (!user && !isPublic) {
+      router.replace("/login")
+    } else if (user && !user.onboarded && !isOnboarding) {
+      router.replace("/onboarding")
+    } else if (user && user.onboarded && (isPublic || isOnboarding)) {
+      router.replace("/")
+    }
+  }, [loading, user, isPublic, isOnboarding, router])
+
+  if (loading) return <Splash />
+
+  // Auth + onboarding screens render without the app chrome.
+  if (isPublic || isOnboarding) {
+    // Guard against a flash of the wrong screen during redirect.
+    if (isPublic && user && user.onboarded) return <Splash />
+    if (isOnboarding && !user) return <Splash />
+    return <div className="min-h-screen bg-background">{children}</div>
+  }
+
+  // App routes require an authenticated, onboarded user.
+  if (!user || !user.onboarded) return <Splash />
 
   return (
     <div className="flex min-h-screen bg-background">
