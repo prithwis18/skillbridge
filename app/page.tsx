@@ -12,12 +12,14 @@ import {
   ClipboardCheck,
 } from "lucide-react"
 import {
-  user,
   jobs,
   activities,
   skills,
   type Activity,
 } from "@/lib/mock-data"
+
+import { getUserProfile } from "@/lib/supabase-user"
+
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/card"
 import { MetricCard } from "@/components/metric-card"
 import { JobCard } from "@/components/job-card"
@@ -34,7 +36,27 @@ const activityIcons: Record<Activity["type"], typeof BookOpen> = {
   assessment: ClipboardCheck,
 }
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+    const profile = await getUserProfile()
+    
+
+const user = {
+  name: profile?.name ?? "User",
+  initials: profile?.name
+    ? profile.name
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "U",
+  targetRole: profile?.target_role ?? "Backend Engineer",
+  experience: profile?.experience_level ?? "Beginner",
+  jobReadiness: 68,
+  skillsMastered: 9,
+  skillGaps: 4,
+  learningProgress: 54,
+}
   const recommendedJobs = [...jobs].sort((a, b) => b.readiness - a.readiness).slice(0, 2)
   const masteredSkills = skills.filter((s) => s.status === "mastered").slice(0, 6)
   const gapSkills = skills.filter((s) => s.status === "gap")
@@ -242,3 +264,7 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+
+
+// hello friends
