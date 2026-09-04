@@ -7,7 +7,7 @@ export type SkillStatus = "mastered" | "in-progress" | "gap"
 export type Skill = {
   name: string
   status: SkillStatus
-  // 0-100 proficiency the user currently has
+  // 0-100 proficiency the  currently has
   proficiency: number
   // 0-100 proficiency the target role expects
   required: number
@@ -39,7 +39,7 @@ export type Job = {
   type: "Full-time" | "Internship" | "Contract"
   salary: string
   posted: string
-  readiness: number // 0-100 match for the current user
+  readiness: number // 0-100 match for the current 
   matchedSkills: string[]
   missingSkills: string[]
   tags: string[]
@@ -64,7 +64,7 @@ export type RoadmapPhase = {
 }
 
 export const targetRoles: Role[] = [
-  { id: "backend", title: "Backend Engineer", demand: "High" },
+  { id: "backend", title: "", demand: "High" },
   { id: "frontend", title: "Frontend Developer", demand: "High" },
   { id: "fullstack", title: "Full Stack Developer", demand: "High" },
   { id: "data-analyst", title: "Data Analyst", demand: "Medium" },
@@ -95,9 +95,9 @@ export const allSkills = [
 ]
 
 export const user = {
-  name: "Aarav Sharma",
+  name: "",
   initials: "AS",
-  targetRole: "Backend Engineer",
+  targetRole: "",
   experience: "Intermediate",
   jobReadiness: 68,
   skillsMastered: 9,
@@ -189,7 +189,7 @@ export const courses: Course[] = [
 export const jobs: Job[] = [
   {
     id: "j1",
-    title: "Backend Engineer",
+    title: "",
     company: "Infosys",
     location: "Bengaluru, KA",
     type: "Full-time",
@@ -279,7 +279,7 @@ export const activities: Activity[] = [
   {
     id: "a4",
     label: "Assessment updated",
-    detail: "Re-ran skill gap analysis for Backend Engineer",
+    detail: "Re-ran skill gap analysis for ",
     time: "3 days ago",
     type: "assessment",
   },

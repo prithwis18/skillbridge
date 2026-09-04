@@ -1,7 +1,6 @@
 "use client"
 
 import { Bell, Search, Menu } from "lucide-react"
-import { user } from "@/lib/mock-data"
 import { Button } from "@/components/ui/button"
 
 export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
@@ -31,16 +30,6 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
           <Bell className="size-5" />
           <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-warning ring-2 ring-card" />
         </Button>
-
-        <div className="flex items-center gap-2.5 border-l border-border pl-3">
-          <div className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-            {user.initials}
-          </div>
-          <div className="hidden leading-tight sm:block">
-            <p className="text-sm font-medium text-foreground">{user.name}</p>
-            <p className="text-xs text-muted-foreground">{user.targetRole}</p>
-          </div>
-        </div>
       </div>
     </header>
   )
