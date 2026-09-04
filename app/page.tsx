@@ -270,6 +270,3 @@ const user = {
 
 
 
-// hello friends
-//tester 1 prithwis
-//gandu
