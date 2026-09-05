@@ -1,3 +1,6 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { Check, Circle, Loader2, BookOpen } from "lucide-react"
 import { roadmap, courses, user, type RoadmapPhase } from "@/lib/mock-data"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/card"
@@ -35,22 +38,32 @@ function phaseMeta(status: RoadmapPhase["status"]) {
 }
 
 export default function RoadmapPage() {
+  const [assessment, setAssessment] = useState<any>(null)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("skillbridge-assessment-result")
+      if (saved) setAssessment(JSON.parse(saved))
+    } catch {}
+  }, [])
+
+  const roadmapProgress = assessment?.skills?.length ? Math.min(100, Math.round((assessment.skills.length / 10) * 100)) : user.learningProgress
   const activeCourses = courses.filter((c) => c.progress > 0)
 
   return (
     <div>
       <PageHeader
         title="Learning Roadmap"
-        description={`A personalized path to become a job-ready ${user.targetRole}.`}
+        description={`A personalized path to become a job-ready ${assessment?.role ?? user.targetRole}.`}
         action={
-          <StatusBadge tone="primary">{user.learningProgress}% complete</StatusBadge>
+          <StatusBadge tone="primary">{assessment?.readiness ?? user.learningProgress}% readiness</StatusBadge>
         }
       />
 
       <Card className="mb-6">
         <CardContent className="p-5">
           <ProgressBar
-            value={user.learningProgress}
+            value={roadmapProgress}
             tone="primary"
             label="Overall roadmap progress"
             showLabel
@@ -166,3 +179,9 @@ export default function RoadmapPage() {
     </div>
   )
 }
+
+
+
+
+
+

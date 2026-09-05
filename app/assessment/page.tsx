@@ -43,6 +43,33 @@ export default function AssessmentPage() {
   ])
   const [experience, setExperience] = useState<string | null>("Intermediate")
 
+  const saveAssessment = () => {
+    const experienceScore: Record<string, number> = {
+      Beginner: 10,
+      Intermediate: 20,
+      Advanced: 30,
+    }
+
+    const skillScore = Math.min(selectedSkills.length * 5, 50)
+    const readiness = Math.min(
+      100,
+      Math.max(0, 20 + skillScore + (experience ? experienceScore[experience] : 0))
+    )
+
+    localStorage.setItem(
+      "skillbridge-assessment-result",
+      JSON.stringify({
+        readiness,
+        role,
+        skills: selectedSkills,
+        experience,
+        updatedAt: new Date().toISOString(),
+      })
+    )
+
+    router.push("/gap-analysis")
+  }
+
   const toggleSkill = (skill: string) =>
     setSelectedSkills((prev) =>
       prev.includes(skill)
@@ -305,7 +332,7 @@ export default function AssessmentPage() {
             <ChevronRight className="size-4" />
           </Button>
         ) : (
-          <Button onClick={() => router.push("/gap-analysis")}>
+          <Button onClick={saveAssessment}>
             <TrendingUp className="size-4" />
             Analyze My Skill Gap
           </Button>
@@ -314,3 +341,5 @@ export default function AssessmentPage() {
     </div>
   )
 }
+
+

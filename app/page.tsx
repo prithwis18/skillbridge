@@ -23,7 +23,7 @@ import { getUserProfile } from "@/lib/supabase-user"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/card"
 import { MetricCard } from "@/components/metric-card"
 import { JobCard } from "@/components/job-card"
-import { ReadinessRing } from "@/components/readiness-ring"
+import { DynamicReadiness } from "@/components/dynamic-readiness"
 import { SkillBadge } from "@/components/skill-badge"
 import { ProgressBar } from "@/components/progress-bar"
 import { StatusBadge } from "@/components/status-badge"
@@ -96,7 +96,7 @@ const user = {
             </div>
           </div>
           <div className="flex shrink-0 items-center justify-center rounded-lg bg-secondary/60 px-8 py-4">
-            <ReadinessRing value={user.jobReadiness} size={150} />
+            <DynamicReadiness fallback={user.jobReadiness} />
           </div>
         </div>
       </Card>
@@ -268,3 +268,4 @@ const user = {
 
 
 // hello friends
+
