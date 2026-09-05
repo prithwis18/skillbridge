@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
+import {
+  groqJSON,
+  groqChat,
+} from "@/lib/ai/groq"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
-import { groqJSON } from "@/lib/ai/groq"
 
 export const dynamic = "force-dynamic"
 
@@ -8,13 +11,13 @@ type AnalysisInput = {
   role?: string
   skills?: string[]
   experience?: string
+  message?: string
   jobs?: Array<{
     title?: string
     description?: string
     matchedSkills?: string[]
   }>
   assessment?: Record<string, unknown>
-  message?: string
 }
 
 type Analysis = {
@@ -40,32 +43,40 @@ const fallback: Analysis = {
   prioritySkills: [],
   roadmap: [],
   jobFit:
-    "Analysis will update when AI service is available.",
+    "AI analysis will update automatically when the AI service is available.",
 }
 
 function normalizeNumber(value: unknown): number {
-  const n = Number(value)
+  const number = Number(value)
 
-  if (!Number.isFinite(n)) return 0
+  if (!Number.isFinite(number)) {
+    return 0
+  }
 
   return Math.max(
     0,
-    Math.min(100, Math.round(n))
+    Math.min(100, Math.round(number))
   )
 }
 
 function normalizeStringArray(
   value: unknown
 ): string[] {
-  if (!Array.isArray(value)) return []
+  if (!Array.isArray(value)) {
+    return []
+  }
 
   return value
-    .map((item) => String(item).trim())
+    .map((item) =>
+      String(item).trim()
+    )
     .filter(Boolean)
-    .slice(0, 20)
+    .slice(0, 30)
 }
 
-export async function POST(request: Request) {
+export async function POST(
+  request: Request
+) {
   try {
     const supabase =
       await createSupabaseServerClient()
@@ -75,14 +86,13 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Unauthorized",
-          fallback,
-        },
-        { status: 401 }
-      )
+      return NextResponse.json({
+        ok: false,
+        ai: false,
+        reply:
+          "Please log in to use SkillBridge AI.",
+        error: "Unauthorized",
+      })
     }
 
     const body =
@@ -134,14 +144,14 @@ export async function POST(request: Request) {
           .slice(0, 15)
           .map((job) => ({
             title: String(
-              job.title || ""
+              job?.title || ""
             ),
             description: String(
-              job.description || ""
+              job?.description || ""
             ).slice(0, 1500),
             matchedSkills:
               Array.isArray(
-                job.matchedSkills
+                job?.matchedSkills
               )
                 ? job.matchedSkills
                     .map(String)
@@ -151,26 +161,31 @@ export async function POST(request: Request) {
       : []
 
     /*
-     * REAL CHAT MODE
-     * The AI page sends { message: "..." }.
-     * This branch returns an actual Groq-generated answer.
+     * CHAT MODE
+     *
+     * Always returns HTTP 200 so the frontend never
+     * breaks when Groq is temporarily rate-limited.
      */
     if (
       typeof body.message === "string" &&
       body.message.trim()
     ) {
-      const chat = await groqJSON<{
-        reply?: string
-      }>(
-        `You are SkillBridge AI Career Assistant.
+      try {
+        const chat =
+          await groqChat(
+            [
+              {
+                role: "system",
+                content: `You are SkillBridge AI Career Assistant.
 
-You help the user with:
+Help the user with:
 - career guidance
 - skill recommendations
 - learning roadmaps
 - skill gap analysis
-- job preparation
+- jobs
 - interview preparation
+- project guidance
 
 User target role:
 ${role}
@@ -184,33 +199,73 @@ ${experience}
 Rules:
 - Answer the user's exact question.
 - Be practical and useful.
-- Use the user's target role and current skills when relevant.
+- Use the user's role and skills when relevant.
 - Do not invent personal information.
-- Do not claim actions were completed when they were not.
-- Keep the response clear and reasonably concise.
-- Return ONLY valid JSON in this format:
-{
-  "reply": "your answer"
-}`,
-        body.message.trim(),
-        {
-          reply:
-            "I’m temporarily unable to connect to the AI service. Please try again.",
+- Do not claim actions were performed if they were not.
+- Keep the answer clear and concise.`,
+              },
+              {
+                role: "user",
+                content:
+                  body.message.trim(),
+              },
+            ],
+            {
+              temperature: 0.3,
+              maxTokens: 1200,
+            }
+          )
+
+        if (
+          chat &&
+          typeof chat.text === "string" &&
+          chat.text.trim()
+        ) {
+          return NextResponse.json({
+            ok: true,
+            ai: true,
+            fallback: false,
+            reply: chat.text.trim(),
+            model: chat.model,
+          })
         }
-      )
+      } catch (error) {
+        console.error(
+          "Chat AI error:",
+          error
+        )
+      }
+
+      /*
+       * Groq unavailable / 429 / quota exhausted.
+       * Never return an error to the frontend.
+       */
+      const fallbackReply =
+        `I'm currently running in SkillBridge fallback mode.
+
+Your target role is ${role}.
+Your current skills: ${
+          skills.join(", ") ||
+          "none added yet"
+        }.
+Your experience level: ${experience}.
+
+For your career path, focus on the core skills required for your target role, then strengthen practical projects, problem solving, Git/GitHub, and interview preparation.
+
+Your saved SkillBridge profile and roadmap are still available. AI responses will resume automatically when the Groq service is available again.`
 
       return NextResponse.json({
         ok: true,
-        ai: true,
-        reply:
-          typeof chat?.reply === "string" &&
-          chat.reply.trim()
-            ? chat.reply.trim()
-            : "I could not generate a response right now.",
-        model: "openai/gpt-oss-20b",
+        ai: false,
+        fallback: true,
+        reply: fallbackReply,
+        model: null,
       })
     }
 
+    /*
+     * CAREER ANALYSIS MODE
+     */
     const prompt = `
 Analyze this SkillBridge candidate.
 
@@ -247,9 +302,8 @@ Rules:
 - readiness must be 0-100
 - do not invent skills the candidate has
 - distinguish current skills from missing skills
-- prioritize skills appearing in the supplied job data
+- prioritize relevant skills
 - roadmap should contain 3-8 items
-- strengths and gaps should be practical
 - do not recommend unrelated technologies
 `
 
@@ -279,34 +333,34 @@ Rules:
 
     const normalized: Analysis = {
       summary:
-        typeof analysis.summary ===
+        typeof analysis?.summary ===
         "string"
           ? analysis.summary
           : fallback.summary,
 
       readiness:
         normalizeNumber(
-          analysis.readiness
+          analysis?.readiness
         ),
 
       strengths:
         normalizeStringArray(
-          analysis.strengths
+          analysis?.strengths
         ),
 
       gaps:
         normalizeStringArray(
-          analysis.gaps
+          analysis?.gaps
         ),
 
       prioritySkills:
         normalizeStringArray(
-          analysis.prioritySkills
+          analysis?.prioritySkills
         ),
 
       roadmap:
         Array.isArray(
-          analysis.roadmap
+          analysis?.roadmap
         )
           ? analysis.roadmap
               .map((item) => ({
@@ -315,10 +369,8 @@ Rules:
                 ).trim(),
 
                 priority:
-                  item?.priority ===
-                    "high" ||
-                  item?.priority ===
-                    "low"
+                  item?.priority === "high" ||
+                  item?.priority === "low"
                     ? item.priority
                     : "medium",
 
@@ -327,14 +379,13 @@ Rules:
                 ).trim(),
               }))
               .filter(
-                (item) =>
-                  item.skill
+                (item) => item.skill
               )
               .slice(0, 10)
           : [],
 
       jobFit:
-        typeof analysis.jobFit ===
+        typeof analysis?.jobFit ===
         "string"
           ? analysis.jobFit
           : fallback.jobFit,
@@ -343,25 +394,29 @@ Rules:
     return NextResponse.json({
       ok: true,
       ai: true,
-      model: "openai/gpt-oss-20b",
+      fallback: false,
+      model:
+        "openai/gpt-oss-20b",
       analysis: normalized,
     })
   } catch (error) {
     console.error(
-      "SkillBridge AI error:",
+      "SkillBridge AI route error:",
       error
     )
 
-    return NextResponse.json(
-      {
-        ok: false,
-        ai: false,
-        analysis: fallback,
-        error:
-          "AI temporarily unavailable.",
-      },
-      { status: 500 }
-    )
+    /*
+     * Even unexpected server errors return a usable
+     * response instead of breaking the frontend.
+     */
+    return NextResponse.json({
+      ok: true,
+      ai: false,
+      fallback: true,
+      reply:
+        "SkillBridge AI is temporarily using fallback mode. Your profile, assessment and roadmap remain available.",
+      analysis: fallback,
+    })
   }
 }
 
@@ -370,6 +425,7 @@ export async function GET() {
     ok: true,
     service:
       "SkillBridge Groq AI",
-    model: "openai/gpt-oss-20b",
+    model:
+      "openai/gpt-oss-20b",
   })
 }
