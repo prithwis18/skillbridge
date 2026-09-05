@@ -1,21 +1,38 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+
+const defaultProfile = {
+  name: "Pratyush",
+  email: "pratyush@example.com",
+  education: "B.Tech Computer Science & Engineering",
+  institution: "Sister Nivedita University",
+  skills: "Java, Python, C, Web Development",
+  career: "Software Development",
+}
 
 export default function AccountPage() {
   const [editing, setEditing] = useState(false)
+  const [profile, setProfile] = useState(defaultProfile)
 
-  const [profile, setProfile] = useState({
-    name: "Pratyush",
-    email: "pratyush@example.com",
-    education: "B.Tech Computer Science & Engineering",
-    institution: "Sister Nivedita University",
-    skills: "Java, Python, C, Web Development",
-    career: "Software Development",
-  })
+  useEffect(() => {
+    const saved = localStorage.getItem("skillbridge-profile")
+    if (saved) {
+      try {
+        setProfile(JSON.parse(saved))
+      } catch {
+        localStorage.removeItem("skillbridge-profile")
+      }
+    }
+  }, [])
 
   const update = (key: keyof typeof profile, value: string) => {
     setProfile((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const saveProfile = () => {
+    localStorage.setItem("skillbridge-profile", JSON.stringify(profile))
+    setEditing(false)
   }
 
   return (
@@ -31,7 +48,7 @@ export default function AccountPage() {
         </div>
 
         <button
-          onClick={() => setEditing(!editing)}
+          onClick={() => (editing ? saveProfile() : setEditing(true))}
           className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90"
         >
           {editing ? "Save Changes" : "Edit Profile"}
@@ -46,6 +63,7 @@ export default function AccountPage() {
             </div>
 
             <h2 className="mt-4 text-xl font-semibold">{profile.name}</h2>
+
             <p className="mt-1 text-sm text-muted-foreground">
               {profile.career}
             </p>
@@ -61,6 +79,7 @@ export default function AccountPage() {
 
         <div className="rounded-2xl border bg-card p-6 shadow-sm lg:col-span-2">
           <h2 className="text-lg font-semibold">Personal Information</h2>
+
           <p className="mt-1 text-sm text-muted-foreground">
             Your basic account details.
           </p>
@@ -113,6 +132,7 @@ export default function AccountPage() {
 
       <div className="rounded-2xl border bg-card p-6 shadow-sm">
         <h2 className="text-lg font-semibold">SkillBridge Profile</h2>
+
         <p className="mt-1 text-sm text-muted-foreground">
           Information used to personalize your SkillBridge experience.
         </p>
