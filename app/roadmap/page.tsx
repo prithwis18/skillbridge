@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useEffect, useMemo, useState } from "react"
 import {
@@ -51,7 +51,32 @@ function ResourceIcon({ type }: { type: Resource["type"] }) {
   return <BookOpen className="size-4" />
 }
 
-export default function RoadmapPage() {
+export default function RoadmapPage() {  const [aiPriorities, setAiPriorities] = useState<string[]>([])
+
+  useEffect(() => {
+    try {
+      const keys = Object.keys(localStorage)
+
+      const analysisKey = keys.find(key =>
+        key.startsWith("skillbridge-ai-analysis-")
+      )
+
+      if (!analysisKey) return
+
+      const saved = localStorage.getItem(analysisKey)
+
+      if (!saved) return
+
+      const data = JSON.parse(saved)
+
+      if (Array.isArray(data?.prioritySkills)) {
+        setAiPriorities(data.prioritySkills)
+      }
+    } catch (error) {
+      console.warn("Could not load AI roadmap priorities:", error)
+    }
+  }, [])
+
   const [data, setData] = useState<LearningResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -337,3 +362,4 @@ export default function RoadmapPage() {
     </div>
   )
 }
+
