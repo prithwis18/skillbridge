@@ -1,38 +1,124 @@
 "use client"
 
+import { supabase } from "@/lib/supabase-browser"
 import { useEffect, useState } from "react"
 
 const defaultProfile = {
-  name: "Pratyush",
-  email: "pratyush@example.com",
-  education: "B.Tech Computer Science & Engineering",
-  institution: "Sister Nivedita University",
-  skills: "Java, Python, C, Web Development",
-  career: "Software Development",
+  name: "",
+  email: "",
+  education: "",
+  institution: "",
+  skills: "",
+  career: "",
 }
 
 export default function AccountPage() {
   const [editing, setEditing] = useState(false)
   const [profile, setProfile] = useState(defaultProfile)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem("skillbridge-profile")
-    if (saved) {
+    async function loadProfile() {
       try {
-        setProfile(JSON.parse(saved))
-      } catch {
-        localStorage.removeItem("skillbridge-profile")
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (!user) {
+          window.location.href = "/login"
+          return
+        }
+
+        const authName =
+          user.user_metadata?.name?.trim() ||
+          user.user_metadata?.full_name?.trim() ||
+          ""
+
+        const authEmail = user.email ?? ""
+
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single()
+
+        if (error) {
+          console.error("Profile fetch error:", error)
+        }
+
+        setProfile({
+          name: authName || data?.name || "",
+          email: authEmail,
+          education: data?.education ?? "",
+          institution: data?.institution ?? "",
+          skills: data?.skills ?? "",
+          career: data?.target_role ?? "",
+        })
+      } catch (error) {
+        console.error("Account loading error:", error)
+      } finally {
+        setLoading(false)
       }
     }
+
+    loadProfile()
   }, [])
 
-  const update = (key: keyof typeof profile, value: string) => {
-    setProfile((prev) => ({ ...prev, [key]: value }))
+  const update = (
+    key: "education" | "institution" | "skills" | "career",
+    value: string
+  ) => {
+    setProfile((prev) => ({
+      ...prev,
+      [key]: value,
+    }))
   }
 
-  const saveProfile = () => {
-    localStorage.setItem("skillbridge-profile", JSON.stringify(profile))
-    setEditing(false)
+  const saveProfile = async () => {
+    setSaving(true)
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        window.location.href = "/login"
+        return
+      }
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          education: profile.education,
+          institution: profile.institution,
+          skills: profile.skills,
+          target_role: profile.career,
+        })
+        .eq("id", user.id)
+
+      if (error) {
+        console.error("Profile save error:", error)
+        return
+      }
+
+      setEditing(false)
+    } catch (error) {
+      console.error("Save error:", error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <p className="text-sm text-muted-foreground">
+          Loading account information...
+        </p>
+      </div>
+    )
   }
 
   return (
@@ -42,16 +128,28 @@ export default function AccountPage() {
           <h1 className="text-2xl font-bold tracking-tight">
             Account Information
           </h1>
+
           <p className="text-sm text-muted-foreground">
             Manage your personal and career information.
           </p>
         </div>
 
         <button
-          onClick={() => (editing ? saveProfile() : setEditing(true))}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+          onClick={() => {
+            if (editing) {
+              saveProfile()
+            } else {
+              setEditing(true)
+            }
+          }}
+          disabled={saving}
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {editing ? "Save Changes" : "Edit Profile"}
+          {saving
+            ? "Saving..."
+            : editing
+              ? "Save Changes"
+              : "Edit Profile"}
         </button>
       </div>
 
@@ -59,19 +157,22 @@ export default function AccountPage() {
         <div className="rounded-2xl border bg-card p-6 shadow-sm">
           <div className="flex flex-col items-center text-center">
             <div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary text-3xl font-bold text-primary-foreground">
-              {profile.name.charAt(0).toUpperCase()}
+              {profile.name.charAt(0).toUpperCase() || "U"}
             </div>
 
-            <h2 className="mt-4 text-xl font-semibold">{profile.name}</h2>
+            <h2 className="mt-4 text-xl font-semibold">
+              {profile.name || "User"}
+            </h2>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              {profile.career}
+              {profile.career || "Career goal not set"}
             </p>
 
             <div className="mt-5 w-full rounded-xl bg-muted/50 p-4 text-left">
               <p className="text-xs font-medium text-muted-foreground">
                 PROFILE STATUS
               </p>
+
               <p className="mt-1 font-medium">Profile Active</p>
             </div>
           </div>
@@ -88,15 +189,15 @@ export default function AccountPage() {
             <Field
               label="Full Name"
               value={profile.name}
-              editing={editing}
-              onChange={(v) => update("name", v)}
+              editing={false}
+              onChange={() => {}}
             />
 
             <Field
               label="Email"
               value={profile.email}
-              editing={editing}
-              onChange={(v) => update("email", v)}
+              editing={false}
+              onChange={() => {}}
             />
 
             <Field
@@ -140,17 +241,34 @@ export default function AccountPage() {
         <div className="mt-5 grid gap-4 sm:grid-cols-3">
           <div className="rounded-xl border p-4">
             <p className="text-sm text-muted-foreground">Assessment</p>
-            <p className="mt-1 font-semibold">Not completed</p>
+
+            <p className="mt-1 font-semibold">
+              Not completed
+            </p>
           </div>
 
           <div className="rounded-xl border p-4">
             <p className="text-sm text-muted-foreground">Skills Added</p>
-            <p className="mt-1 font-semibold">4 skills</p>
+
+            <p className="mt-1 font-semibold">
+              {Array.isArray(profile.skills) ? profile.skills : (typeof profile.skills === "string" ? profile.skills.split(",").map((skill) => skill.trim()).filter(Boolean) : [])
+                ? Array.isArray(profile.skills) ? profile.skills : (typeof profile.skills === "string" ? profile.skills.split(",").map((skill) => skill.trim()).filter(Boolean) : [])
+                    .split(",")
+                    .map((skill) => skill.trim())
+                    .filter(Boolean).length
+                : 0}{" "}
+              skills
+            </p>
           </div>
 
           <div className="rounded-xl border p-4">
-            <p className="text-sm text-muted-foreground">Career Goal</p>
-            <p className="mt-1 font-semibold">{profile.career}</p>
+            <p className="text-sm text-muted-foreground">
+              Career Goal
+            </p>
+
+            <p className="mt-1 font-semibold">
+              {profile.career || "Not set"}
+            </p>
           </div>
         </div>
       </div>
@@ -171,7 +289,9 @@ function Field({
 }) {
   return (
     <div>
-      <label className="text-sm font-medium">{label}</label>
+      <label className="text-sm font-medium">
+        {label}
+      </label>
 
       {editing ? (
         <input
@@ -181,7 +301,7 @@ function Field({
         />
       ) : (
         <div className="mt-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
-          {value}
+          {value || "Not set"}
         </div>
       )}
     </div>

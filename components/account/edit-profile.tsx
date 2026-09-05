@@ -1,4 +1,4 @@
-ï»¿"use client"
+"use client"
 
 import { useState } from "react"
 import { X } from "lucide-react"
@@ -88,7 +88,7 @@ export function EditProfile({
     }
 
     localStorage.setItem(
-      "skillbridge_account_preferences",
+      `skillbridge_account_preferences_${user.id}`,
       JSON.stringify(updatedPreferences)
     )
 
@@ -240,9 +240,9 @@ export function EditProfile({
                   className={inputClass}
                 >
                   <option value="">Select hours</option>
-                  <option value="2-4 hours">2â€“4 hours</option>
-                  <option value="5-7 hours">5â€“7 hours</option>
-                  <option value="8-10 hours">8â€“10 hours</option>
+                  <option value="2-4 hours">2–4 hours</option>
+                  <option value="5-7 hours">5–7 hours</option>
+                  <option value="8-10 hours">8–10 hours</option>
                   <option value="10+ hours">10+ hours</option>
                 </select>
               </div>
@@ -297,3 +297,4 @@ export function EditProfile({
     </div>
   )
 }
+

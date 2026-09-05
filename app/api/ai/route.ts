@@ -1,8 +1,9 @@
 import OpenAI from "openai"
 import { NextResponse } from "next/server"
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const groq = new OpenAI({
+  apiKey: process.env.GROQ_API_KEY,
+  baseURL: "https://api.groq.com/openai/v1",
 })
 
 export async function POST(request: Request) {
@@ -44,8 +45,8 @@ ${message}
 Give a useful, clear and personalized answer.
 `
 
-    const response = await openai.responses.create({
-      model: "gpt-5.6-luna",
+    const response = await groq.responses.create({
+      model: "openai/gpt-oss-20b",
       input: prompt,
     })
 

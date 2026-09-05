@@ -1,3 +1,8 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabase-browser"
+
 import Link from "next/link"
 import {
   Target,
@@ -18,8 +23,6 @@ import {
   type Activity,
 } from "@/lib/mock-data"
 
-import { getUserProfile } from "@/lib/supabase-user"
-
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/card"
 import { MetricCard } from "@/components/metric-card"
 import { JobCard } from "@/components/job-card"
@@ -36,10 +39,34 @@ const activityIcons: Record<Activity["type"], typeof BookOpen> = {
   assessment: ClipboardCheck,
 }
 
-export default async function DashboardPage() {
-    const profile = await getUserProfile()
-    
+export default function DashboardPage() {
+  const [profile, setProfile] = useState<any>(null)
 
+  useEffect(() => {
+    async function loadProfile() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) return
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("name, target_role, experience_level")
+        .eq("id", user.id)
+        .single()
+
+      if (data) {
+        setProfile({
+          name: data.name,
+          career: data.target_role,
+          experience: data.experience_level,
+        })
+      }
+    }
+
+    loadProfile()
+  }, [])
 const user = {
   name: profile?.name ?? "User",
   initials: profile?.name
@@ -50,8 +77,8 @@ const user = {
         .slice(0, 2)
         .toUpperCase()
     : "U",
-  targetRole: profile?.target_role ?? "Backend Engineer",
-  experience: profile?.experience_level ?? "Beginner",
+  targetRole: profile?.career ?? "Backend Engineer",
+  experience: profile?.experience ?? "Beginner",
   jobReadiness: 68,
   skillsMastered: 9,
   skillGaps: 4,
@@ -268,4 +295,12 @@ const user = {
 
 
 // hello friends
+
+
+
+
+
+
+
+
 

@@ -1,4 +1,6 @@
-﻿"use client"
+"use client"
+
+import { supabase } from "@/lib/supabase-browser"
 
 import { useEffect, useState } from "react"
 
@@ -31,15 +33,25 @@ export function AIAssistant() {
   ])
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("skillbridge-profile")
+    async function loadProfile() {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
 
-      if (saved) {
-        setProfile(JSON.parse(saved))
+        if (!user) return
+
+        const saved = localStorage.getItem(`skillbridge-profile-${user.id}`)
+
+        if (saved) {
+          setProfile(JSON.parse(saved))
+        }
+      } catch {
+        console.log("Could not load profile")
       }
-    } catch {
-      console.log("Could not load profile")
     }
+
+    loadProfile()
   }, [])
 
   const sendMessage = async () => {
@@ -225,3 +237,8 @@ export function AIAssistant() {
     </>
   )
 }
+
+
+
+
+

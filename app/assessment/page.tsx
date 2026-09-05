@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { supabase } from "@/lib/supabase-browser"
 import { useRouter } from "next/navigation"
 import {
   Check,
@@ -43,7 +44,17 @@ export default function AssessmentPage() {
   ])
   const [experience, setExperience] = useState<string | null>("Intermediate")
 
-  const saveAssessment = () => {
+  const saveAssessment = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      router.push("/login")
+      return
+    }
+
+
     const experienceScore: Record<string, number> = {
       Beginner: 10,
       Intermediate: 20,
@@ -56,8 +67,27 @@ export default function AssessmentPage() {
       Math.max(0, 20 + skillScore + (experience ? experienceScore[experience] : 0))
     )
 
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({
+        target_role: role,
+        skills: selectedSkills,
+        experience_level: experience,
+      })
+      .eq("id", user.id)
+
+    if (profileError) {
+      console.error("PROFILE UPDATE ERROR:", JSON.stringify(profileError, null, 2))
+      console.error("PROFILE UPDATE ERROR MESSAGE:", profileError?.message)
+      console.error("PROFILE UPDATE ERROR CODE:", profileError?.code)
+      console.error("PROFILE UPDATE ERROR DETAILS:", profileError?.details)
+      console.error("PROFILE UPDATE ERROR HINT:", profileError?.hint)
+      alert(`Profile update failed: ${profileError?.message || "Unknown Supabase error"}`)
+      return
+    }
+
     localStorage.setItem(
-      "skillbridge-assessment-result",
+      `skillbridge-assessment-result-${user.id}`,
       JSON.stringify({
         readiness,
         role,
@@ -341,5 +371,16 @@ export default function AssessmentPage() {
     </div>
   )
 }
+
+
+
+
+
+
+
+
+
+
+
 
 

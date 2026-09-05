@@ -33,6 +33,11 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
+      options: {
+        data: {
+          name: name.trim(),
+        },
+      },
     })
 
     if (error) {
@@ -422,3 +427,4 @@ export default function LoginPage() {
     </main>
   )
 }
+
