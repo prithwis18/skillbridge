@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
 
 type Job = {
@@ -12,6 +12,7 @@ type Job = {
   source: string
   tags: string[]
   match: number
+  locationScore: number
 }
 
 function normalize(value: string) {
@@ -20,6 +21,55 @@ function normalize(value: string) {
     .replace(/[^\w+#.\s-]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
+}
+
+function locationScore(location: string, remote: boolean) {
+  const value = normalize(location)
+
+  const kolkata =
+    value.includes("kolkata") ||
+    value.includes("calcutta")
+
+  const westBengal =
+    value.includes("west bengal") ||
+    value.includes("west-bengal")
+
+  const india =
+    value.includes("india") ||
+    value.includes("indian")
+
+  const foreignIndicators = [
+    "usa",
+    "united states",
+    "us only",
+    "uk",
+    "united kingdom",
+    "canada",
+    "australia",
+    "germany",
+    "france",
+    "netherlands",
+    "singapore",
+    "ireland",
+    "europe",
+    "european union",
+    "worldwide",
+  ]
+
+  const explicitlyForeign =
+    foreignIndicators.some((country) =>
+      value.includes(country)
+    )
+
+  if (kolkata) return 100
+  if (westBengal) return 85
+  if (india) return 70
+
+  if (remote && !explicitlyForeign) {
+    return 55
+  }
+
+  return 0
 }
 
 function calculateMatch(
@@ -40,7 +90,10 @@ function calculateMatch(
   for (const skill of skills) {
     const normalizedSkill = normalize(skill)
 
-    if (normalizedSkill && text.includes(normalizedSkill)) {
+    if (
+      normalizedSkill &&
+      text.includes(normalizedSkill)
+    ) {
       skillMatches++
     }
   }
@@ -56,7 +109,10 @@ function calculateMatch(
       ? 30
       : 0
 
-  return Math.min(100, Math.round(skillScore + roleScore))
+  return Math.min(
+    100,
+    Math.round(skillScore + roleScore)
+  )
 }
 
 async function fetchArbeitnow() {
@@ -77,7 +133,9 @@ async function fetchArbeitnow() {
 
     const data = await response.json()
 
-    return Array.isArray(data.data) ? data.data : []
+    return Array.isArray(data.data)
+      ? data.data
+      : []
   } catch {
     return []
   }
@@ -101,7 +159,9 @@ async function fetchRemotive() {
 
     const data = await response.json()
 
-    return Array.isArray(data.jobs) ? data.jobs : []
+    return Array.isArray(data.jobs)
+      ? data.jobs
+      : []
   } catch {
     return []
   }
@@ -109,7 +169,8 @@ async function fetchRemotive() {
 
 export async function GET() {
   try {
-    const supabase = await createSupabaseServerClient()
+    const supabase =
+      await createSupabaseServerClient()
 
     const {
       data: { user },
@@ -117,129 +178,239 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json(
-        { error: "Authentication required" },
+        {
+          error: "Authentication required",
+        },
         { status: 401 }
       )
     }
 
-    const { data: profile, error: profileError } =
-      await supabase
-        .from("profiles")
-        .select("target_role, skills")
-        .eq("id", user.id)
-        .single()
+    const {
+      data: profile,
+      error: profileError,
+    } = await supabase
+      .from("profiles")
+      .select("target_role, skills")
+      .eq("id", user.id)
+      .single()
 
     if (profileError) {
-      console.error("Job profile error:", profileError)
+      console.error(
+        "Job profile error:",
+        profileError
+      )
     }
 
     const targetRole =
-      profile?.target_role?.trim() || "Software Engineer"
+      profile?.target_role?.trim() ||
+      "Software Engineer"
 
     let skills: string[] = []
 
     if (Array.isArray(profile?.skills)) {
       skills = profile.skills
-        .map((skill: unknown) => String(skill).trim())
+        .map((skill: unknown) =>
+          String(skill).trim()
+        )
         .filter(Boolean)
-    } else if (typeof profile?.skills === "string") {
+    } else if (
+      typeof profile?.skills === "string"
+    ) {
       skills = profile.skills
         .split(",")
-        .map((skill: string) => skill.trim())
+        .map((skill: string) =>
+          skill.trim()
+        )
         .filter(Boolean)
     }
 
-    const [arbeitnowJobs, remotiveJobs] =
-      await Promise.all([
-        fetchArbeitnow(),
-        fetchRemotive(),
-      ])
+    const [
+      arbeitnowJobs,
+      remotiveJobs,
+    ] = await Promise.all([
+      fetchArbeitnow(),
+      fetchRemotive(),
+    ])
 
     const jobs: Job[] = []
 
     for (const job of arbeitnowJobs) {
-      const title = String(job.title ?? "")
-      const description = String(job.description ?? "")
+      const title = String(
+        job.title ?? ""
+      )
+
+      const description = String(
+        job.description ?? ""
+      )
+
       const tags = Array.isArray(job.tags)
-        ? job.tags.map((tag: unknown) => String(tag))
+        ? job.tags.map((tag: unknown) =>
+            String(tag)
+          )
         : []
+
+      const location = String(
+        job.location ?? "Remote"
+      )
 
       if (!title) continue
 
+      const localScore =
+        locationScore(
+          location,
+          Boolean(job.remote)
+        )
+
+      if (localScore === 0) continue
+
+      const match =
+        calculateMatch(
+          title,
+          description,
+          tags,
+          targetRole,
+          skills
+        )
+
       jobs.push({
-        id: `arbeitnow-${job.slug ?? job.id ?? Math.random()}`,
+        id: `arbeitnow-${
+          job.slug ??
+          job.id ??
+          Math.random()
+        }`,
         title,
-        company: String(job.company_name ?? "Unknown Company"),
-        location: String(job.location ?? "Remote"),
+        company: String(
+          job.company_name ??
+            "Unknown Company"
+        ),
+        location,
         remote: Boolean(job.remote),
         description,
         url: String(job.url ?? ""),
         source: "Arbeitnow",
         tags,
-        match: calculateMatch(
+        match,
+        locationScore: localScore,
+      })
+    }
+
+    for (const job of remotiveJobs) {
+      const title = String(
+        job.title ?? ""
+      )
+
+      const description = String(
+        job.description ?? ""
+      )
+
+      const tags = Array.isArray(job.tags)
+        ? job.tags.map((tag: unknown) =>
+            String(tag)
+          )
+        : []
+
+      const location = String(
+        job.candidate_required_location ??
+          "Remote"
+      )
+
+      if (!title) continue
+
+      const localScore =
+        locationScore(
+          location,
+          true
+        )
+
+      if (localScore === 0) continue
+
+      const match =
+        calculateMatch(
           title,
           description,
           tags,
           targetRole,
           skills
-        ),
-      })
-    }
-
-    for (const job of remotiveJobs) {
-      const title = String(job.title ?? "")
-      const description = String(job.description ?? "")
-      const tags = Array.isArray(job.tags)
-        ? job.tags.map((tag: unknown) => String(tag))
-        : []
-
-      if (!title) continue
+        )
 
       jobs.push({
-        id: `remotive-${job.id ?? Math.random()}`,
+        id: `remotive-${
+          job.id ??
+          Math.random()
+        }`,
         title,
-        company: String(job.company_name ?? "Unknown Company"),
-        location: String(job.candidate_required_location ?? "Remote"),
+        company: String(
+          job.company_name ??
+            "Unknown Company"
+        ),
+        location:
+          location.toLowerCase() ===
+          "india"
+            ? "India · Remote"
+            : location,
         remote: true,
         description,
         url: String(job.url ?? ""),
         source: "Remotive",
         tags,
-        match: calculateMatch(
-          title,
-          description,
-          tags,
-          targetRole,
-          skills
-        ),
+        match,
+        locationScore: localScore,
       })
     }
 
-    const uniqueJobs = Array.from(
-      new Map(
-        jobs
-          .filter((job) => job.url)
-          .map((job) => [job.url, job])
-      ).values()
-    )
+    const uniqueJobs =
+      Array.from(
+        new Map(
+          jobs
+            .filter(
+              (job) => job.url
+            )
+            .map((job) => [
+              job.url,
+              job,
+            ])
+        ).values()
+      )
 
-    uniqueJobs.sort((a, b) => b.match - a.match)
+    uniqueJobs.sort(
+      (a, b) => {
+        const aScore =
+          a.locationScore * 2 +
+          a.match
+
+        const bScore =
+          b.locationScore * 2 +
+          b.match
+
+        return bScore - aScore
+      }
+    )
 
     return NextResponse.json({
       userId: user.id,
       targetRole,
+      preferredLocation:
+        "Kolkata, West Bengal, India",
       skills,
-      jobs: uniqueJobs.slice(0, 60),
+      jobs:
+        uniqueJobs.slice(0, 60),
       total: uniqueJobs.length,
-      generatedAt: new Date().toISOString(),
+      generatedAt:
+        new Date().toISOString(),
       freshness:
-        "Jobs are fetched dynamically; freshness depends on the public provider.",
+        "Jobs are fetched dynamically and prioritized for Kolkata, West Bengal and India.",
     })
   } catch (error) {
-    console.error("Jobs API error:", error)
+    console.error(
+      "Jobs API error:",
+      error
+    )
 
     return NextResponse.json(
-      { error: "Unable to load jobs" },
+      {
+        error:
+          "Unable to load jobs",
+      },
       { status: 500 }
     )
   }
