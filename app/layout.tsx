@@ -1,4 +1,4 @@
-﻿import { Analytics } from '@vercel/analytics/next'
+import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import { AppShell } from '@/components/app-shell'
@@ -12,7 +12,7 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'SkillBridge — AI Skill-to-Job Intelligence',
+  title: 'SkillBridge',
   description:
     'SkillBridge analyzes your skill gaps, builds a personalized learning roadmap, and matches you to jobs you are ready for.',
   generator: 'v0.app',

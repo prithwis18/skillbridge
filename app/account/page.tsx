@@ -52,7 +52,24 @@ export default function AccountPage() {
           email: authEmail,
           education: data?.education ?? "",
           institution: data?.institution ?? "",
-          skills: data?.skills ?? "",
+          skills: (() => {
+            const existing = Array.isArray(data?.skills)
+              ? data.skills
+              : (typeof data?.skills === "string"
+                ? data.skills.split(",").map((skill) => skill.trim()).filter(Boolean)
+                : [])
+
+            const additions = [
+              "Statistics",
+              "NumPy",
+              "Pandas",
+              "Data Visualization",
+              "Machine Learning",
+              "Scikit-learn",
+            ]
+
+            return Array.from(new Set([...existing, ...additions])).join(", ")
+          })(),
           career: data?.target_role ?? "",
         })
       } catch (error) {
@@ -99,13 +116,14 @@ export default function AccountPage() {
         .eq("id", user.id)
 
       if (error) {
-        console.error("Profile save error:", error)
-        return
-      }
+  alert(String(error.message || error.code || "Profile save failed"))
+  console.error("Profile save error:", error)
+  return
+}
 
       setEditing(false)
     } catch (error) {
-      console.error("Save error:", error)
+      console.error("Save error:", JSON.stringify(error, null, 2))
     } finally {
       setSaving(false)
     }
@@ -251,13 +269,11 @@ export default function AccountPage() {
             <p className="text-sm text-muted-foreground">Skills Added</p>
 
             <p className="mt-1 font-semibold">
-              {Array.isArray(profile.skills) ? profile.skills : (typeof profile.skills === "string" ? profile.skills.split(",").map((skill) => skill.trim()).filter(Boolean) : [])
-                ? Array.isArray(profile.skills) ? profile.skills : (typeof profile.skills === "string" ? profile.skills.split(",").map((skill) => skill.trim()).filter(Boolean) : [])
-                    .split(",")
-                    .map((skill) => skill.trim())
-                    .filter(Boolean).length
-                : 0}{" "}
-              skills
+              {typeof profile.skills === "string"
+                ? profile.skills.split(",").map((skill) => skill.trim()).filter(Boolean).length
+                : Array.isArray(profile.skills)
+                  ? profile.skills.length
+                  : 0}{" "}              skills
             </p>
           </div>
 
@@ -307,3 +323,9 @@ function Field({
     </div>
   )
 }
+
+
+
+
+
+

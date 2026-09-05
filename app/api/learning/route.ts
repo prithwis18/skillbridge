@@ -1,5 +1,19 @@
 import { NextResponse } from "next/server"
 import { createSupabaseServerClient } from "@/lib/supabase-server"
+import { groqJSON } from "@/lib/ai/groq"
+
+type RoadmapItem = {
+  order: number
+  phase: string
+  skill: string
+  reason: string
+  prerequisite: string
+  estimatedHours: number
+  topics: string[]
+  practice: string[]
+  project: string
+  checkpoint: string
+}
 
 type Resource = {
   id: string
@@ -12,180 +26,115 @@ type Resource = {
   free: boolean
 }
 
-function cleanSkill(value: string) {
+function clean(value: unknown): string {
+  if (typeof value !== "string") return ""
+
   return value
-    .replace(/[^\w\s.+#-]/g, "")
+    .replace(/[^\w\s.+#/&-]/g, "")
     .trim()
 }
 
-function docsForSkill(skill: string): Resource[] {
-  const encoded = encodeURIComponent(skill)
+function normalizeSkills(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
 
-  const docs: Record<string, string> = {
-    Python: "https://docs.python.org/3/",
-    JavaScript: "https://developer.mozilla.org/en-US/docs/Web/JavaScript",
-    TypeScript: "https://www.typescriptlang.org/docs/",
-    React: "https://react.dev/learn",
-    "Next.js": "https://nextjs.org/docs",
-    "Node.js": "https://nodejs.org/docs/latest/api/",
-    SQL: "https://www.postgresql.org/docs/",
-    PostgreSQL: "https://www.postgresql.org/docs/",
-    MongoDB: "https://www.mongodb.com/docs/",
-    Git: "https://git-scm.com/doc",
-    Docker: "https://docs.docker.com/get-started/",
-    AWS: "https://docs.aws.amazon.com/",
-    DSA: "https://www.geeksforgeeks.org/dsa/",
-    "REST APIs": "https://developer.mozilla.org/en-US/docs/Glossary/REST",
-    "Machine Learning": "https://scikit-learn.org/stable/user_guide.html",
-    Linux: "https://www.linux.org/pages/download/",
+  return value
+    .map(clean)
+    .filter(Boolean)
+    .filter((skill, index, array) => {
+      return (
+        array.findIndex(
+          (x) => x.toLowerCase() === skill.toLowerCase()
+        ) === index
+      )
+    })
+}
+
+function documentation(skill: string): string | null {
+  const key = skill.toLowerCase()
+
+  const map: Record<string, string> = {
+    python: "https://docs.python.org/3/",
+    javascript:
+      "https://developer.mozilla.org/en-US/docs/Web/JavaScript",
+    typescript:
+      "https://www.typescriptlang.org/docs/",
+    "html & css":
+      "https://developer.mozilla.org/en-US/docs/Learn_web_development/Core",
+    react: "https://react.dev/learn",
+    "next.js": "https://nextjs.org/docs",
+    "node.js": "https://nodejs.org/docs/latest/api/",
+    git: "https://git-scm.com/doc",
+    sql: "https://www.postgresql.org/docs/",
+    postgresql: "https://www.postgresql.org/docs/",
+    mongodb: "https://www.mongodb.com/docs/",
+    docker: "https://docs.docker.com/get-started/",
+    aws: "https://docs.aws.amazon.com/",
+    linux: "https://www.linux.org/",
+    "rest apis":
+      "https://developer.mozilla.org/en-US/docs/Glossary/REST",
+    "machine learning":
+      "https://scikit-learn.org/stable/user_guide.html",
+    "scikit-learn":
+      "https://scikit-learn.org/stable/user_guide.html",
+    pandas: "https://pandas.pydata.org/docs/",
+    numpy: "https://numpy.org/doc/",
+    statistics:
+      "https://docs.scipy.org/doc/scipy/tutorial/stats.html",
+    "data visualization":
+      "https://matplotlib.org/stable/users/index.html",
   }
 
-  return [
-    {
-      id: `docs-${encoded}`,
+  return map[key] ?? null
+}
+
+function resourcesForSkill(skill: string): Resource[] {
+  const result: Resource[] = []
+  const encoded = encodeURIComponent(skill)
+
+  const docs = documentation(skill)
+
+  if (docs) {
+    result.push({
+      id: `docs-${skill}`,
       title: `${skill} Official Documentation`,
-      description: `Official documentation and learning material for ${skill}.`,
+      description:
+        `Official documentation and learning material for ${skill}.`,
       type: "documentation",
-      url:
-        docs[skill] ??
-        `https://www.google.com/search?q=${encoded}+official+documentation`,
+      url: docs,
       source: "Official Documentation",
       skill,
       free: true,
-    },
-  ]
-}
-
-async function githubForSkill(skill: string): Promise<Resource[]> {
-  try {
-    const query = encodeURIComponent(`${skill} learning tutorial`)
-
-    const response = await fetch(
-      `https://api.github.com/search/repositories?q=${query}&sort=stars&order=desc&per_page=6`,
-      {
-        headers: {
-          Accept: "application/vnd.github+json",
-          "User-Agent": "SkillBridge",
-        },
-        next: { revalidate: 900 },
-      }
-    )
-
-    if (!response.ok) return []
-
-    const data = await response.json()
-
-    return (data.items ?? []).slice(0, 6).map((repo: any) => ({
-      id: `github-${repo.id}`,
-      title: repo.full_name,
-      description:
-        repo.description ??
-        `Open-source ${skill} project for practical learning.`,
-      type: "github" as const,
-      url: repo.html_url,
-      source: "GitHub Open Source",
-      skill,
-      free: true,
-    }))
-  } catch {
-    return []
+    })
   }
-}
 
-async function youtubeForSkill(skill: string): Promise<Resource[]> {
-  const apiKey = process.env.YOUTUBE_API_KEY
+  result.push({
+    id: `github-${skill}`,
+    title: `${skill} Open Source Projects`,
+    description:
+      `Real open-source repositories and projects for ${skill}.`,
+    type: "github",
+    url: `https://github.com/search?q=${encoded}&type=repositories`,
+    source: "GitHub",
+    skill,
+    free: true,
+  })
 
-  if (!apiKey) return []
+  result.push({
+    id: `youtube-${skill}`,
+    title: `${skill} Full Courses & Projects`,
+    description:
+      `Courses, tutorials and project-based learning for ${skill}.`,
+    type: "video",
+    url:
+      `https://www.youtube.com/results?search_query=${encodeURIComponent(
+        `${skill} full course project tutorial`
+      )}`,
+    source: "YouTube",
+    skill,
+    free: true,
+  })
 
-  try {
-    const queries = [
-      `${skill} complete course`,
-      `${skill} full course`,
-      `${skill} tutorial playlist`,
-    ]
-
-    const results: Resource[] = []
-
-    for (const searchQuery of queries) {
-      const query = encodeURIComponent(searchQuery)
-
-      const response = await fetch(
-        `https://www.googleapis.com/youtube/v3/search?part=snippet&type=playlist&maxResults=3&q=${query}&relevanceLanguage=en&regionCode=IN&key=${apiKey}`,
-        {
-          next: { revalidate: 900 },
-        }
-      )
-
-      if (!response.ok) continue
-
-      const data = await response.json()
-
-      for (const item of data.items ?? []) {
-        const playlistId = item.id?.playlistId
-
-        if (!playlistId) continue
-
-        results.push({
-          id: `youtube-playlist-${playlistId}`,
-          title: item.snippet?.title ?? `${skill} YouTube Playlist`,
-          description:
-            item.snippet?.description ??
-            `Public YouTube learning playlist for ${skill}.`,
-          type: "video",
-          url: `https://www.youtube.com/playlist?list=${playlistId}`,
-          source: "YouTube Playlist",
-          skill,
-          free: true,
-        })
-      }
-    }
-
-    const unique = Array.from(
-      new Map(results.map((item) => [item.id, item])).values()
-    )
-
-    return unique.slice(0, 8)
-  } catch {
-    return []
-  }
-}
-
-async function youtubeVideosForSkill(skill: string): Promise<Resource[]> {
-  const apiKey = process.env.YOUTUBE_API_KEY
-
-  if (!apiKey) return []
-
-  try {
-    const query = encodeURIComponent(`${skill} tutorial`)
-
-    const response = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=3&q=${query}&videoEmbeddable=true&relevanceLanguage=en&regionCode=IN&key=${apiKey}`,
-      {
-        next: { revalidate: 900 },
-      }
-    )
-
-    if (!response.ok) return []
-
-    const data = await response.json()
-
-    return (data.items ?? [])
-      .filter((item: any) => item.id?.videoId)
-      .map((item: any) => ({
-        id: `youtube-video-${item.id.videoId}`,
-        title: item.snippet?.title ?? `${skill} Tutorial`,
-        description:
-          item.snippet?.description ??
-          `YouTube tutorial for ${skill}.`,
-        type: "video" as const,
-        url: `https://www.youtube.com/watch?v=${item.id.videoId}`,
-        source: "YouTube",
-        skill,
-        free: true,
-      }))
-  } catch {
-    return []
-  }
+  return result
 }
 
 export async function GET() {
@@ -198,130 +147,261 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json(
-        { error: "Authentication required" },
+        { error: "Unauthorized" },
         { status: 401 }
       )
     }
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("target_role, skills")
+      .select("target_role, skills, experience_level")
       .eq("id", user.id)
-      .single()
+      .maybeSingle()
 
     const targetRole =
-      profile?.target_role?.trim() || "Software Engineer"
+      typeof profile?.target_role === "string" &&
+      profile.target_role.trim()
+        ? profile.target_role.trim()
+        : "Software Engineer"
 
-    const profileSkills =
-      typeof profile?.skills === "string"
-        ? profile.skills
-            .split(",")
-            .map((skill: string) => cleanSkill(skill))
-            .filter(Boolean)
-        : Array.isArray(profile?.skills)
-          ? profile.skills
-              .map((skill: unknown) => cleanSkill(String(skill)))
-              .filter(Boolean)
-          : []
+    const currentSkills = normalizeSkills(profile?.skills)
 
-    const roleSkills: Record<string, string[]> = {
-      "Backend Engineer": [
-        "Python",
-        "Java",
-        "SQL",
-        "Git",
-        "REST APIs",
-        "Docker",
-        "AWS",
-      ],
-      "Frontend Engineer": [
-        "JavaScript",
-        "TypeScript",
-        "React",
-        "Next.js",
-        "Git",
-      ],
-      "Full Stack Developer": [
-        "JavaScript",
-        "TypeScript",
-        "React",
-        "Next.js",
-        "Node.js",
-        "SQL",
-        "Git",
-      ],
-      "Data Scientist": [
-        "Python",
-        "SQL",
-        "Machine Learning",
-        "Git",
-      ],
-      "Machine Learning Engineer": [
-        "Python",
-        "Machine Learning",
-        "SQL",
-        "Git",
-        "Docker",
-        "AWS",
-      ],
-      "DevOps Engineer": [
-        "Linux",
-        "Git",
-        "Docker",
-        "AWS",
-      ],
-    }
+    const fallbackItems: RoadmapItem[] = [
+      {
+        order: 1,
+        phase: "Foundation",
+        skill:
+          currentSkills[0] ?? "Core Programming",
+        reason:
+          `Build a strong foundation for the ${targetRole} career path.`,
+        prerequisite: "None",
+        estimatedHours: 25,
+        topics: [
+          "Fundamentals",
+          "Problem solving",
+          "Practical usage",
+        ],
+        practice: [
+          "Complete practical exercises",
+          "Solve beginner problems",
+        ],
+        project:
+          `Build a small project related to ${targetRole}.`,
+        checkpoint:
+          "Complete the project independently.",
+      },
+      {
+        order: 2,
+        phase: "Core Skills",
+        skill: "Data Structures & Algorithms",
+        reason:
+          `Strengthen problem-solving ability for ${targetRole}.`,
+        prerequisite:
+          currentSkills[0] ?? "Basic programming",
+        estimatedHours: 35,
+        topics: [
+          "Arrays",
+          "Strings",
+          "Hashing",
+          "Searching",
+          "Sorting",
+        ],
+        practice: [
+          "Solve coding problems",
+          "Implement common algorithms",
+        ],
+        project:
+          "Build a problem-solving project.",
+        checkpoint:
+          "Solve intermediate problems without assistance.",
+      },
+      {
+        order: 3,
+        phase: "Projects",
+        skill: "Git",
+        reason:
+          "Version control is essential for real software projects.",
+        prerequisite: "Basic programming",
+        estimatedHours: 12,
+        topics: [
+          "Commits",
+          "Branches",
+          "Merge",
+          "Pull requests",
+        ],
+        practice: [
+          "Create repositories",
+          "Practice branching workflows",
+        ],
+        project:
+          "Publish a portfolio project on GitHub.",
+        checkpoint:
+          "Complete a Git-based project workflow.",
+      },
+    ]
 
-    const liveRole = targetRole.trim()
+    const ai = await groqJSON<{
+      analysis?: string
+      roadmap?: RoadmapItem[]
+    }>(
+      `You are SkillBridge's AI Learning Advisor.
 
-    const liveSkills = profileSkills
-      .map((skill) => String(skill).trim())
-      .filter(Boolean)
+Analyze the learner for their target role and create a realistic learning roadmap.
 
-    const skills = Array.from(
-      new Set([
-        liveRole,
-        ...liveSkills,
-      ])
+Target role:
+${targetRole}
+
+Current skills:
+${
+  currentSkills.length
+    ? currentSkills.join(", ")
+    : "None provided"
+}
+
+Experience level:
+${
+  typeof profile?.experience_level === "string" &&
+  profile.experience_level.trim()
+    ? profile.experience_level
+    : "Not specified"
+}
+
+Your job:
+1. Analyze what the learner needs for the target role.
+2. Identify missing or weak skills.
+3. Recommend the most important skills.
+4. Prioritize skills logically.
+5. Create a prerequisite-based learning order.
+6. Do not simply repeat the learner's existing skills.
+7. Do not include the target role itself as a skill.
+8. Return 5-10 roadmap items.
+9. Keep recommendations practical and job-oriented.
+
+For every roadmap item return:
+order
+phase
+skill
+reason
+prerequisite
+estimatedHours
+topics
+practice
+project
+checkpoint
+
+Also return:
+analysis
+
+The analysis should be a concise explanation of what the learner should focus on and why.
+
+Return ONLY JSON.`,
+      `Analyze this learner and build the best learning roadmap for ${targetRole}.`,
+      {
+        analysis:
+          `For the ${targetRole} role, focus on the most important missing skills and learn them in prerequisite order.`,
+        roadmap: fallbackItems,
+      }
     )
-      .filter(Boolean)
+
+    const roadmap =
+      Array.isArray(ai?.roadmap) && ai.roadmap.length > 0
+        ? ai.roadmap
+        : fallbackItems
+
+    const normalizedRoadmap: RoadmapItem[] = roadmap
+      .map((item, index) => ({
+        order: index + 1,
+        phase:
+          typeof item.phase === "string" && item.phase.trim()
+            ? item.phase.trim()
+            : `Phase ${Math.floor(index / 2) + 1}`,
+        skill: clean(item.skill),
+        reason:
+          typeof item.reason === "string" && item.reason.trim()
+            ? item.reason.trim()
+            : "Important for the target role.",
+        prerequisite:
+          typeof item.prerequisite === "string" &&
+          item.prerequisite.trim()
+            ? item.prerequisite.trim()
+            : "None",
+        estimatedHours:
+          typeof item.estimatedHours === "number" &&
+          item.estimatedHours > 0
+            ? Math.round(item.estimatedHours)
+            : 25,
+        topics: Array.isArray(item.topics)
+          ? item.topics.map(clean).filter(Boolean)
+          : [],
+        practice: Array.isArray(item.practice)
+          ? item.practice.map(clean).filter(Boolean)
+          : [],
+        project:
+          typeof item.project === "string" && item.project.trim()
+            ? item.project.trim()
+            : "Build a practical project.",
+        checkpoint:
+          typeof item.checkpoint === "string" &&
+          item.checkpoint.trim()
+            ? item.checkpoint.trim()
+            : "Complete the practical project.",
+      }))
+      .filter((item) => item.skill)
       .slice(0, 10)
-    const resources: Resource[] = []
 
-    for (const skill of skills) {
-      const [github, playlists, videos] = await Promise.all([
-        githubForSkill(skill),
-        youtubeForSkill(skill),
-        youtubeVideosForSkill(skill),
-      ])
+    const resources = normalizedRoadmap.flatMap(
+      (item) => resourcesForSkill(item.skill)
+    )
 
-      resources.push(
-        ...docsForSkill(skill),
-        ...github,
-        ...playlists,
-        ...videos
-      )
-    }
+    const totalHours = normalizedRoadmap.reduce(
+      (sum, item) => sum + item.estimatedHours,
+      0
+    )
 
     return NextResponse.json({
-      userId: user.id,
       targetRole,
-      skills,
+      currentSkills,
+      aiSummary:
+        typeof ai?.analysis === "string" && ai.analysis.trim()
+          ? ai.analysis.trim()
+          : `AI recommendations for your ${targetRole} career path.`,
+      recommendedSkills: normalizedRoadmap.map(
+        (item) => item.skill
+      ),
+      skills: normalizedRoadmap,
       resources,
+      totalHours,
+      totalSkills: normalizedRoadmap.length,
       sources: {
         github: true,
-        youtube: Boolean(process.env.YOUTUBE_API_KEY),
+        youtube: true,
         documentation: true,
       },
       generatedAt: new Date().toISOString(),
+      aiAvailable:
+        Array.isArray(ai?.roadmap) &&
+        ai.roadmap.length > 0,
     })
   } catch (error) {
-    console.error("Learning API error:", error)
+    console.error("Learning roadmap error:", error)
 
-    return NextResponse.json(
-      { error: "Unable to load learning resources" },
-      { status: 500 }
-    )
+    return NextResponse.json({
+      targetRole: "Software Engineer",
+      currentSkills: [],
+      aiSummary:
+        "AI recommendations are temporarily unavailable. A basic learning roadmap is being shown.",
+      recommendedSkills: [],
+      skills: [],
+      resources: [],
+      totalHours: 0,
+      totalSkills: 0,
+      sources: {
+        github: false,
+        youtube: false,
+        documentation: false,
+      },
+      generatedAt: new Date().toISOString(),
+      aiAvailable: false,
+    })
   }
 }
-

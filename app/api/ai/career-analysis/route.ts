@@ -1,151 +1,432 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
+import { createSupabaseServerClient } from "@/lib/supabase-server"
 import { groqJSON } from "@/lib/ai/groq"
 
-type Profile = {
-  name?: string
-  target_role?: string
-  skills?: unknown
-  experience_level?: string
-}
+type SkillAnalysis = {
+  targetRole: string
+  readiness: number
+  summary: string
 
-function normalizeSkills(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.map(String).map(s => s.trim()).filter(Boolean)
+  strengths: string[]
+
+  currentSkills: string[]
+  requiredSkills: string[]
+
+  missingSkills: string[]
+  weakSkills: string[]
+
+  prioritySkills: string[]
+
+  skillGaps: Array<{
+    skill: string
+    status: "missing" | "weak" | "strength"
+    priority: "high" | "medium" | "low"
+    reason: string
+  }>
+
+  roadmap: Array<{
+    order: number
+    phase: string
+    skill: string
+    reason: string
+    prerequisite: string
+    estimatedHours: number
+    topics: string[]
+    practice: string[]
+    project: string
+    checkpoint: string
+  }>
+
+  jobFit: {
+    score: number
+    explanation: string
   }
 
-  if (typeof value === "string") {
-    return value.split(",").map(s => s.trim()).filter(Boolean)
-  }
-
-  return []
+  aiAvailable: boolean
 }
 
-function fallbackAnalysis(profile: Profile) {
-  const role = profile.target_role?.trim() || "Software Developer"
-  const skills = normalizeSkills(profile.skills)
+function clean(value: unknown): string {
+  if (typeof value !== "string") return ""
 
-  const common = [
-    "Data Structures & Algorithms",
-    "Git",
-    "SQL",
-    "REST APIs",
-    "Testing",
-    "System Design",
-  ]
+  return value
+    .replace(/[^\w\s.+#/&-]/g, "")
+    .trim()
+}
 
-  const gaps = common.filter(
-    skill => !skills.some(
-      s => s.toLowerCase() === skill.toLowerCase()
-    )
+function skills(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+
+  return value
+    .map(clean)
+    .filter(Boolean)
+    .filter((skill, index, array) => {
+      return (
+        array.findIndex(
+          x => x.toLowerCase() === skill.toLowerCase()
+        ) === index
+      )
+    })
+}
+
+function fallback(profile: any): SkillAnalysis {
+  const targetRole =
+    typeof profile?.target_role === "string" &&
+    profile.target_role.trim()
+      ? profile.target_role.trim()
+      : "Software Engineer"
+
+  const currentSkills = skills(profile?.skills)
+
+  const role = targetRole.toLowerCase()
+
+  let requiredSkills: string[]
+
+  if (
+    role.includes("frontend") ||
+    role.includes("react") ||
+    role.includes("web")
+  ) {
+    requiredSkills = [
+      "HTML & CSS",
+      "JavaScript",
+      "TypeScript",
+      "React",
+      "Next.js",
+      "Git",
+      "REST APIs",
+      "Testing",
+    ]
+  } else if (
+    role.includes("backend") ||
+    role.includes("node") ||
+    role.includes("software")
+  ) {
+    requiredSkills = [
+      "Programming Fundamentals",
+      "Data Structures & Algorithms",
+      "Git",
+      "REST APIs",
+      "Node.js",
+      "SQL",
+      "PostgreSQL",
+      "Testing",
+      "Docker",
+      "System Design",
+    ]
+  } else if (
+    role.includes("data") ||
+    role.includes("analyst") ||
+    role.includes("machine learning") ||
+    role.includes("ml")
+  ) {
+    requiredSkills = [
+      "Python",
+      "Statistics",
+      "SQL",
+      "NumPy",
+      "Pandas",
+      "Data Visualization",
+      "Machine Learning",
+      "Scikit-learn",
+      "Git",
+    ]
+  } else if (
+    role.includes("devops") ||
+    role.includes("cloud")
+  ) {
+    requiredSkills = [
+      "Linux",
+      "Git",
+      "Networking",
+      "Docker",
+      "CI/CD",
+      "AWS",
+      "Kubernetes",
+      "Terraform",
+    ]
+  } else {
+    requiredSkills = [
+      "Programming Fundamentals",
+      "Data Structures & Algorithms",
+      "Git",
+      "SQL",
+      "REST APIs",
+      "Testing",
+      "Docker",
+      "System Design",
+    ]
+  }
+
+  const current = new Set(
+    currentSkills.map(x => x.toLowerCase())
   )
 
+  const missingSkills = requiredSkills.filter(
+    x => !current.has(x.toLowerCase())
+  )
+
+  const strengthSkills = requiredSkills.filter(
+    x => current.has(x.toLowerCase())
+  )
+
+  const weakSkills = strengthSkills.slice(0, 2)
+
+  const prioritySkills = [
+    ...missingSkills,
+    ...weakSkills,
+  ].slice(0, 8)
+
+  const roadmap = prioritySkills.map((skill, index) => ({
+    order: index + 1,
+    phase: `Phase ${Math.floor(index / 2) + 1}`,
+    skill,
+    reason: missingSkills.some(
+      x => x.toLowerCase() === skill.toLowerCase()
+    )
+      ? `This skill is missing for your ${targetRole} target.`
+      : `This skill is already present but should be strengthened for ${targetRole}.`,
+    prerequisite:
+      index === 0
+        ? "None"
+        : prioritySkills[index - 1],
+    estimatedHours: index < 2 ? 20 : 30,
+    topics: [
+      `${skill} fundamentals`,
+      `${skill} practical concepts`,
+      `${skill} real-world usage`,
+    ],
+    practice: [
+      `Solve practical ${skill} exercises`,
+      `Build small tasks using ${skill}`,
+    ],
+    project:
+      `Build a ${skill}-based project related to ${targetRole}.`,
+    checkpoint:
+      `Complete a practical ${skill} project without following a tutorial.`,
+  }))
+
   const readiness = Math.max(
-    20,
+    10,
     Math.min(
       95,
-      35 +
-        Math.min(skills.length * 6, 36) +
-        (profile.experience_level === "Advanced"
-          ? 20
-          : profile.experience_level === "Intermediate"
-            ? 12
-            : 5)
+      Math.round(
+        (strengthSkills.length / Math.max(requiredSkills.length, 1)) * 100
+      )
     )
   )
 
   return {
-    aiAvailable: false,
-    targetRole: role,
+    targetRole,
     readiness,
-    summary: `Based on your current profile, you have a foundation for ${role}. Focus on the highest-priority missing skills and practical projects.`,
-    strengths: skills.slice(0, 5),
-    gaps: gaps.slice(0, 6),
-    prioritySkills: gaps.slice(0, 5),
-    roadmap: gaps.slice(0, 5).map((skill, index) => ({
-      order: index + 1,
+    summary:
+      `You have ${strengthSkills.length} relevant strengths and ${missingSkills.length} important skill gaps for ${targetRole}. Focus first on the highest-priority missing skills before moving to advanced topics.`,
+
+    strengths: strengthSkills,
+
+    currentSkills,
+    requiredSkills,
+
+    missingSkills,
+    weakSkills,
+
+    prioritySkills,
+
+    skillGaps: requiredSkills.map(skill => ({
       skill,
-      reason: `Build ${skill} knowledge for your ${role} target.`,
+      status: current.has(skill.toLowerCase())
+        ? "strength"
+        : "missing",
+      priority: missingSkills.includes(skill)
+        ? "high"
+        : "medium",
+      reason: current.has(skill.toLowerCase())
+        ? `You already have exposure to ${skill}.`
+        : `${skill} is required for your target role.`,
     })),
+
+    roadmap,
+
     jobFit: {
       score: readiness,
-      explanation: `Your current profile has a ${readiness}% estimated baseline fit for ${role}.`,
+      explanation:
+        `Your current profile has approximately ${readiness}% coverage of the core skills identified for ${targetRole}.`,
     },
+
+    aiAvailable: false,
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const profile: Profile = body?.profile || {}
+    const body = await request.json().catch(() => ({}))
 
-    const role = profile.target_role?.trim() || "Software Developer"
-    const skills = normalizeSkills(profile.skills)
+    const suppliedProfile = body?.profile
 
-    const prompt = `
-You are the career intelligence engine for SkillBridge.
+    const supabase = await createSupabaseServerClient()
 
-Analyze this candidate for their target role.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      )
+    }
+
+    const { data: dbProfile } = await supabase
+      .from("profiles")
+      .select(
+        "target_role, skills, experience_level, education, bio"
+      )
+      .eq("id", user.id)
+      .maybeSingle()
+
+    const profile = {
+      ...(dbProfile ?? {}),
+      ...(suppliedProfile ?? {}),
+    }
+
+    const targetRole =
+      typeof profile.target_role === "string" &&
+      profile.target_role.trim()
+        ? profile.target_role.trim()
+        : "Software Engineer"
+
+    const currentSkills = skills(profile.skills)
+
+    const fallbackResult = fallback(profile)
+
+    const ai = await groqJSON<SkillAnalysis>(
+      `You are SkillBridge's expert AI Career Coach.
+
+You must perform a REAL personalized skill-gap analysis.
 
 TARGET ROLE:
-${role}
+${targetRole}
 
 CURRENT SKILLS:
-${skills.length ? skills.join(", ") : "No skills provided"}
+${
+  currentSkills.length
+    ? currentSkills.join(", ")
+    : "No skills provided"
+}
 
-EXPERIENCE:
-${profile.experience_level || "Not specified"}
+EXPERIENCE LEVEL:
+${profile.experience_level || "Not provided"}
 
-Return ONLY valid JSON using exactly this structure:
+Your task:
+
+1. Determine the real skills required for the target role.
+2. Compare them against the user's current skills.
+3. Identify strengths.
+4. Identify missing skills.
+5. Identify weak skills.
+6. Explain WHY each gap matters.
+7. Rank gaps by HIGH/MEDIUM/LOW priority.
+8. Calculate realistic job readiness from the comparison.
+9. Create a prerequisite-based learning roadmap.
+10. DO NOT simply copy the user's current skills.
+11. DO NOT include the target role itself as a skill.
+12. Return 5-10 important roadmap skills.
+13. Start from fundamentals when prerequisites are missing.
+14. Each roadmap item must include topics, practice and a project.
+15. The roadmap must be practical for a student trying to become job-ready.
+16. Be specific to the target role.
+17. Do not make generic motivational statements.
+18. Return ONLY valid JSON.
+
+JSON FORMAT:
 
 {
   "targetRole": "string",
   "readiness": 0,
-  "summary": "string",
-  "strengths": ["string"],
-  "gaps": ["string"],
-  "prioritySkills": ["string"],
+  "summary": "specific analysis",
+  "strengths": ["skill"],
+  "currentSkills": ["skill"],
+  "requiredSkills": ["skill"],
+  "missingSkills": ["skill"],
+  "weakSkills": ["skill"],
+  "prioritySkills": ["skill"],
+  "skillGaps": [
+    {
+      "skill": "string",
+      "status": "missing",
+      "priority": "high",
+      "reason": "specific reason"
+    }
+  ],
   "roadmap": [
     {
       "order": 1,
+      "phase": "Phase 1",
       "skill": "string",
-      "reason": "string"
+      "reason": "why this comes now",
+      "prerequisite": "None",
+      "estimatedHours": 25,
+      "topics": ["topic1", "topic2"],
+      "practice": ["task1", "task2"],
+      "project": "project idea",
+      "checkpoint": "completion condition"
     }
   ],
   "jobFit": {
     "score": 0,
-    "explanation": "string"
+    "explanation": "specific explanation"
   }
+}`,
+      `Analyze this student's profile now.
+
+Target role: ${targetRole}
+
+Current skills:
+${
+  currentSkills.length
+    ? currentSkills.join(", ")
+    : "None"
 }
 
-Rules:
-- readiness must be 0-100
-- jobFit.score must be 0-100
-- identify realistic role-specific gaps
-- do not invent candidate skills
-- roadmap should contain 4-6 priorities
-- prioritize practical employability
-- keep summary concise
-`
+Experience:
+${profile.experience_level || "Unknown"}
 
-    const result = await groqJSON(prompt)
+Produce the complete personalized analysis and roadmap.`,
+      fallbackResult
+    )
+
+    const validAI =
+      ai &&
+      Array.isArray(ai.missingSkills) &&
+      Array.isArray(ai.weakSkills) &&
+      Array.isArray(ai.prioritySkills) &&
+      Array.isArray(ai.roadmap) &&
+      ai.roadmap.length > 0
+
+    if (!validAI) {
+      return NextResponse.json(fallbackResult)
+    }
 
     return NextResponse.json({
+      ...ai,
+      targetRole,
+      currentSkills,
       aiAvailable: true,
-      ...result,
+      generatedAt: new Date().toISOString(),
     })
   } catch (error) {
-    console.error("Career AI failed, using fallback:", error)
+    console.error(
+      "Career analysis error:",
+      error
+    )
 
     return NextResponse.json(
-      fallbackAnalysis(
-        (() => {
-          try {
-            return {}
-          } catch {
-            return {}
-          }
-        })()
-      ),
+      {
+        ...fallback({
+          target_role: "Software Engineer",
+          skills: [],
+        }),
+        aiAvailable: false,
+      },
       { status: 200 }
     )
   }

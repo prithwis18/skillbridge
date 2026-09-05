@@ -351,3 +351,4 @@ export const readinessBreakdown = {
   recommendation:
     "You are strongly aligned on core backend skills. Close the AWS and System Design gaps to move from 78% to interview-ready (90%+).",
 }
+

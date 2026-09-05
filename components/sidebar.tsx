@@ -67,7 +67,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             SkillBridge
           </p>
           <p className="text-[11px] text-sidebar-foreground/70">
-            Skill-to-Job Intelligence
+            
           </p>
         </div>
       </div>
@@ -138,3 +138,4 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     </aside>
   )
 }
+

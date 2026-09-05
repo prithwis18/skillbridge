@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useEffect, useMemo, useState } from "react"
 import {
@@ -27,16 +27,33 @@ type Resource = {
   free: boolean
 }
 
+type RoadmapSkill = {
+  order?: number
+  phase?: string
+  skill: string
+  reason?: string
+  prerequisite?: string
+  estimatedHours?: number
+  topics?: string[]
+  practice?: string[]
+  project?: string
+  checkpoint?: string
+}
+
 type LearningResponse = {
   targetRole: string
-  skills: string[]
+  skills: RoadmapSkill[]
   resources: Resource[]
+  totalHours?: number
+  totalSkills?: number
   sources: {
     github: boolean
     youtube: boolean
     documentation: boolean
   }
   generatedAt: string
+  aiSummary?: string
+  aiAvailable?: boolean
 }
 
 function ResourceIcon({ type }: { type: Resource["type"] }) {
@@ -51,13 +68,21 @@ function ResourceIcon({ type }: { type: Resource["type"] }) {
   return <BookOpen className="size-4" />
 }
 
-export default function RoadmapPage() {  const [aiPriorities, setAiPriorities] = useState<string[]>([])
+function getSkillName(skill: RoadmapSkill | string) {
+  return typeof skill === "string" ? skill : skill.skill
+}
+
+export default function RoadmapPage() {
+  const [aiPriorities, setAiPriorities] = useState<string[]>([])
+  const [data, setData] = useState<LearningResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
 
   useEffect(() => {
     try {
       const keys = Object.keys(localStorage)
 
-      const analysisKey = keys.find(key =>
+      const analysisKey = keys.find((key) =>
         key.startsWith("skillbridge-ai-analysis-")
       )
 
@@ -67,19 +92,19 @@ export default function RoadmapPage() {  const [aiPriorities, setAiPriorities] =
 
       if (!saved) return
 
-      const data = JSON.parse(saved)
+      const analysis = JSON.parse(saved)
 
-      if (Array.isArray(data?.prioritySkills)) {
-        setAiPriorities(data.prioritySkills)
+      if (Array.isArray(analysis?.prioritySkills)) {
+        setAiPriorities(
+          analysis.prioritySkills.filter(
+            (skill: unknown): skill is string => typeof skill === "string"
+          )
+        )
       }
     } catch (error) {
       console.warn("Could not load AI roadmap priorities:", error)
     }
   }, [])
-
-  const [data, setData] = useState<LearningResponse | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
 
   useEffect(() => {
     async function loadLearning() {
@@ -103,7 +128,9 @@ export default function RoadmapPage() {  const [aiPriorities, setAiPriorities] =
         const result = await response.json()
 
         if (!response.ok) {
-          throw new Error(result.error || "Unable to load learning resources")
+          throw new Error(
+            result.error || "Unable to load learning resources"
+          )
         }
 
         setData(result)
@@ -121,42 +148,46 @@ export default function RoadmapPage() {  const [aiPriorities, setAiPriorities] =
   const resourcesBySkill = useMemo(() => {
     if (!data) return {}
 
-    return data.skills.reduce<Record<string, Resource[]>>((groups, skill) => {
-      groups[skill] = data.resources.filter(
-        (resource) => resource.skill.toLowerCase() === skill.toLowerCase()
-      )
-      return groups
-    }, {})
+    return data.skills.reduce<Record<string, Resource[]>>(
+      (groups, roadmapSkill) => {
+        const skillName = getSkillName(roadmapSkill)
+
+        if (!skillName) return groups
+
+        groups[skillName] = data.resources.filter(
+          (resource) =>
+            String(resource.skill ?? "").toLowerCase() ===
+            skillName.toLowerCase()
+        )
+
+        return groups
+      },
+      {}
+    )
   }, [data])
 
   const totalResources = data?.resources.length ?? 0
 
-  const youtubePlaylists = data?.resources.filter(
-    (resource) => resource.source === "YouTube Playlist"
-  ) ?? []
-
-  const githubResources = data?.resources.filter(
-    (resource) => resource.type === "github"
-  ) ?? []
-
-  const documentationResources = data?.resources.filter(
-    (resource) => resource.type === "documentation"
-  ) ?? []
-
   const skillProgress =
     data?.skills.length
       ? Math.round(
-          (data.skills.filter(
-            (skill) =>
-              data.resources.some(
-                (resource) =>
-                  resource.skill.toLowerCase() === skill.toLowerCase()
-              )
-          ).length /
+          (data.skills.filter((skill) => {
+            const skillName = getSkillName(skill)
+
+            return data.resources.some(
+              (resource) =>
+                String(resource.skill ?? "").toLowerCase() ===
+                skillName.toLowerCase()
+            )
+          }).length /
             data.skills.length) *
             100
         )
       : 0
+
+  const prioritySet = new Set(
+    aiPriorities.map((skill) => skill.toLowerCase())
+  )
 
   if (loading) {
     return (
@@ -193,7 +224,9 @@ export default function RoadmapPage() {  const [aiPriorities, setAiPriorities] =
     <div>
       <PageHeader
         title="Learning Roadmap"
-        description={`A personalized learning path for ${data?.targetRole ?? "your target role"}.`}
+        description={`A personalized learning path for ${
+          data?.targetRole ?? "your target role"
+        }.`}
         action={
           <StatusBadge tone="primary">
             {data?.skills.length ?? 0} skills
@@ -201,6 +234,49 @@ export default function RoadmapPage() {  const [aiPriorities, setAiPriorities] =
         }
       />
 
+      {/* AI Recommendation */}
+      <Card className="mb-6">
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium text-primary">
+                GROQ AI LEARNING ADVISOR
+              </p>
+              <h2 className="mt-1 text-base font-semibold text-foreground">
+                What should you learn for this role?
+              </h2>
+            </div>
+
+            <StatusBadge tone="primary">
+              AI Recommended
+            </StatusBadge>
+          </div>
+
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            {data?.aiSummary ||
+              `AI is analyzing the best skills for your ${data?.targetRole ?? "target role"} career path.`}
+          </p>
+
+          {data?.skills && data.skills.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs font-medium text-muted-foreground">
+                Recommended learning order
+              </p>
+
+              <div className="mt-2 flex flex-wrap gap-2">
+                {data.skills.slice(0, 10).map((skill, index) => (
+                  <span
+                    key={`${skill.skill}-${index}`}
+                    className="rounded-md bg-accent px-2.5 py-1.5 text-xs font-medium text-foreground"
+                  >
+                    {index + 1}. {skill.skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
       {/* Overview */}
       <Card className="mb-6">
         <CardContent className="p-5">
@@ -254,10 +330,26 @@ export default function RoadmapPage() {  const [aiPriorities, setAiPriorities] =
         </h2>
 
         <div className="flex flex-wrap gap-2">
-          {data?.skills.map((skill) => (
-            <SkillBadge key={skill} name={skill} />
-          ))}
-        </div>
+            {aiPriorities.length > 0 ? (
+              aiPriorities.map((skill, index) => (
+                <SkillBadge
+                  key={`${skill}-${index}`}
+                  name={skill}
+                />
+              ))
+            ) : (
+              data?.skills.map((skill) => {
+                const skillName = getSkillName(skill)
+
+                return (
+                  <SkillBadge
+                    key={skillName}
+                    name={skillName}
+                  />
+                )
+              })
+            )}
+          </div>
       </div>
 
       {/* Learning resources */}
@@ -267,16 +359,27 @@ export default function RoadmapPage() {  const [aiPriorities, setAiPriorities] =
         </h2>
 
         <div className="space-y-6">
-          {data?.skills.map((skill) => {
-            const resources = resourcesBySkill[skill] ?? []
+          {data?.skills.map((roadmapSkill) => {
+            const skillName = getSkillName(roadmapSkill)
+            const resources = resourcesBySkill[skillName] ?? []
+            const isPriority = prioritySet.has(skillName.toLowerCase())
 
             return (
-              <section key={skill}>
+              <section key={skillName}>
                 <div className="mb-3 flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-semibold text-foreground">
-                      {skill}
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-foreground">
+                        {skillName}
+                      </h3>
+
+                      {isPriority && (
+                        <StatusBadge tone="primary">
+                          Priority
+                        </StatusBadge>
+                      )}
+                    </div>
+
                     <p className="text-xs text-muted-foreground">
                       {resources.length} learning resources
                     </p>
@@ -286,6 +389,118 @@ export default function RoadmapPage() {  const [aiPriorities, setAiPriorities] =
                     {resources.length} resources
                   </StatusBadge>
                 </div>
+
+                {/* AI roadmap details */}
+                {typeof roadmapSkill === "object" && (
+                  <Card className="mb-4">
+                    <CardContent className="p-5">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        {roadmapSkill.phase && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">
+                              Phase
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-foreground">
+                              {roadmapSkill.phase}
+                            </p>
+                          </div>
+                        )}
+
+                        {roadmapSkill.estimatedHours !== undefined && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">
+                              Estimated Time
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-foreground">
+                              {roadmapSkill.estimatedHours} hours
+                            </p>
+                          </div>
+                        )}
+
+                        {roadmapSkill.reason && (
+                          <div className="sm:col-span-2">
+                            <p className="text-xs text-muted-foreground">
+                              Why learn this?
+                            </p>
+                            <p className="mt-1 text-sm text-foreground">
+                              {roadmapSkill.reason}
+                            </p>
+                          </div>
+                        )}
+
+                        {roadmapSkill.prerequisite && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">
+                              Prerequisite
+                            </p>
+                            <p className="mt-1 text-sm text-foreground">
+                              {roadmapSkill.prerequisite}
+                            </p>
+                          </div>
+                        )}
+
+                        {roadmapSkill.project && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">
+                              Project
+                            </p>
+                            <p className="mt-1 text-sm text-foreground">
+                              {roadmapSkill.project}
+                            </p>
+                          </div>
+                        )}
+
+                        {roadmapSkill.checkpoint && (
+                          <div className="sm:col-span-2">
+                            <p className="text-xs text-muted-foreground">
+                              Checkpoint
+                            </p>
+                            <p className="mt-1 text-sm text-foreground">
+                              {roadmapSkill.checkpoint}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {roadmapSkill.topics &&
+                        roadmapSkill.topics.length > 0 && (
+                          <div className="mt-4">
+                            <p className="text-xs text-muted-foreground">
+                              Topics
+                            </p>
+
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {roadmapSkill.topics.map((topic, index) => (
+                                <span
+                                  key={`${skillName}-topic-${index}`}
+                                  className="rounded-md bg-accent px-2 py-1 text-xs text-foreground"
+                                >
+                                  {topic}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                      {roadmapSkill.practice &&
+                        roadmapSkill.practice.length > 0 && (
+                          <div className="mt-4">
+                            <p className="text-xs text-muted-foreground">
+                              Practice
+                            </p>
+
+                            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-foreground">
+                              {roadmapSkill.practice.map((item, index) => (
+                                <li key={`${skillName}-practice-${index}`}>
+                                  {item}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                    </CardContent>
+                  </Card>
+                )}
 
                 {resources.length > 0 ? (
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -313,7 +528,8 @@ export default function RoadmapPage() {  const [aiPriorities, setAiPriorities] =
                         </h4>
 
                         <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">
-                          {resource.description || "Free learning resource."}
+                          {resource.description ||
+                            "Free learning resource."}
                         </p>
 
                         <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">

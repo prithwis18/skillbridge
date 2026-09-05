@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -51,7 +51,7 @@ export function AppSidebar() {
           </div>
 
           <div className="text-[11px] opacity-60">
-            Skill-to-Job Intelligence
+            
           </div>
         </div>
       </div>
@@ -101,3 +101,4 @@ export function AppSidebar() {
     </aside>
   )
 }
+
