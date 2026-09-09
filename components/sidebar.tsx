@@ -9,6 +9,9 @@ import {
   Route,
   LogOut,
   ShieldCheck,
+  LifeBuoy,
+  Info,
+  MessageSquareText,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase-browser"
@@ -100,6 +103,57 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           )
         })}
       </nav>
+
+      {/* Help Desk */}
+      <div className="border-t border-sidebar-border px-3 py-3">
+        <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+          Support
+        </p>
+
+        <div className="space-y-1">
+          <Link
+            href="/help-desk"
+            onClick={onNavigate}
+            className={cn(
+              "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+              pathname.startsWith("/help-desk")
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <LifeBuoy className="size-4.5 shrink-0" />
+            Help Desk
+          </Link>
+
+          <Link
+            href="/about"
+            onClick={onNavigate}
+            className={cn(
+              "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+              pathname.startsWith("/about")
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <Info className="size-4.5 shrink-0" />
+            About
+          </Link>
+
+          <Link
+            href="/feedback"
+            onClick={onNavigate}
+            className={cn(
+              "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+              pathname.startsWith("/feedback")
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <MessageSquareText className="size-4.5 shrink-0" />
+            Feedback
+          </Link>
+        </div>
+      </div>
 
       {/* User + Logout */}
       <div className="space-y-3 border-t border-sidebar-border p-4">
