@@ -1,0 +1,57 @@
+{
+  "react": [
+    { "title": "React Fundamentals: Components, Props, State", "provider": "Frontend Masters", "level": "beginner", "durationMins": 420, "url": "https://example.edu/courses/react-fundamentals", "skills": [["react", 1], ["javascript", 0.5]] },
+    { "title": "Advanced React Patterns & Performance", "provider": "Epic React", "level": "advanced", "durationMins": 660, "url": "https://example.edu/courses/advanced-react", "skills": [["react", 1], ["typescript", 0.4]] },
+    { "title": "Build a Full App with React and TypeScript", "provider": "Scrimba", "level": "intermediate", "durationMins": 540, "url": "https://example.edu/courses/react-ts-app", "skills": [["react", 0.9], ["typescript", 0.8]] }
+  ],
+  "typescript": [
+    { "title": "TypeScript for JavaScript Developers", "provider": "Total TypeScript", "level": "beginner", "durationMins": 360, "url": "https://example.edu/courses/ts-for-js", "skills": [["typescript", 1], ["javascript", 0.4]] },
+    { "title": "Type-Level TypeScript Workshop", "provider": "Total TypeScript", "level": "advanced", "durationMins": 480, "url": "https://example.edu/courses/type-level-ts", "skills": [["typescript", 1]] }
+  ],
+  "system-design": [
+    { "title": "System Design Primer: Scaling from 1 to 1M Users", "provider": "Educative", "level": "intermediate", "durationMins": 900, "url": "https://example.edu/courses/system-design-primer", "skills": [["system-design", 1], ["caching", 0.6], ["microservices", 0.5]] },
+    { "title": "Designing Data-Intensive Applications, Studied", "provider": "ByteByteGo", "level": "advanced", "durationMins": 1200, "url": "https://example.edu/courses/ddia-studied", "skills": [["system-design", 1], ["data-modeling", 0.7], ["message-queues", 0.6]] }
+  ],
+  "docker": [
+    { "title": "Docker from Scratch to Compose", "provider": "KodeKloud", "level": "beginner", "durationMins": 480, "url": "https://example.edu/courses/docker-scratch", "skills": [["docker", 1], ["linux", 0.4]] },
+    { "title": "Production Containers: Images, Security, Slimming", "provider": "Docker Captains", "level": "advanced", "durationMins": 300, "url": "https://example.edu/courses/prod-containers", "skills": [["docker", 1], ["security", 0.5]] }
+  ],
+  "sql": [
+    { "title": "SQL for Engineers: Joins to Window Functions", "provider": "Mode Analytics", "level": "beginner", "durationMins": 400, "url": "https://example.edu/courses/sql-engineers", "skills": [["sql", 1], ["postgres", 0.5]] },
+    { "title": "Query Tuning and Indexing in PostgreSQL", "provider": "PGExercises", "level": "advanced", "durationMins": 520, "url": "https://example.edu/courses/pg-tuning", "skills": [["postgres", 1], ["sql", 0.8], ["data-modeling", 0.4]] }
+  ],
+  "algorithms": [
+    { "title": "Algorithms Part I", "provider": "Princeton Online", "level": "intermediate", "durationMins": 1800, "url": "https://example.edu/courses/algorithms-1", "skills": [["algorithms", 1], ["data-structures", 0.9]] },
+    { "title": "Interview DSA Bootcamp", "provider": "NeetCode", "level": "intermediate", "durationMins": 1500, "url": "https://example.edu/courses/dsa-bootcamp", "skills": [["data-structures", 1], ["algorithms", 0.9], ["problem-solving", 0.5]] }
+  ],
+  "python": [
+    { "title": "Python Crash Course for Programmers", "provider": "Real Python", "level": "beginner", "durationMins": 480, "url": "https://example.edu/courses/python-crash", "skills": [["python", 1]] },
+    { "title": "Data Analysis with Pandas", "provider": "DataCamp", "level": "intermediate", "durationMins": 600, "url": "https://example.edu/courses/pandas-analysis", "skills": [["pandas", 1], ["python", 0.6], ["statistics", 0.4]] }
+  ],
+  "machine-learning": [
+    { "title": "Machine Learning Specialization", "provider": "DeepLearning.AI", "level": "beginner", "durationMins": 2400, "url": "https://example.edu/courses/ml-specialization", "skills": [["machine-learning", 1], ["python", 0.5], ["statistics", 0.6]] },
+    { "title": "Practical Deep Learning for Coders", "provider": "fast.ai", "level": "intermediate", "durationMins": 1800, "url": "https://example.edu/courses/practical-dl", "skills": [["deep-learning", 1], ["machine-learning", 0.7], ["python", 0.5]] }
+  ],
+  "redis": [
+    { "title": "Redis Streams, Pub/Sub and Caching Patterns", "provider": "Redis University", "level": "intermediate", "durationMins": 300, "url": "https://example.edu/courses/redis-patterns", "skills": [["redis", 1], ["caching", 0.8], ["message-queues", 0.7]] }
+  ],
+  "nodejs": [
+    { "title": "Node.js Services: HTTP, Streams, Backpressure", "provider": "Node Foundation", "level": "intermediate", "durationMins": 540, "url": "https://example.edu/courses/node-services", "skills": [["nodejs", 1], ["rest-apis", 0.7], ["javascript", 0.5]] },
+    { "title": "Securing Node APIs: Auth, Sessions, Tokens", "provider": "Auth0 Labs", "level": "intermediate", "durationMins": 360, "url": "https://example.edu/courses/node-auth", "skills": [["authentication", 1], ["nodejs", 0.6], ["security", 0.7]] }
+  ],
+  "kubernetes": [
+    { "title": "Kubernetes for Developers", "provider": "CNCF", "level": "intermediate", "durationMins": 720, "url": "https://example.edu/courses/k8s-devs", "skills": [["kubernetes", 1], ["docker", 0.6], ["linux", 0.4]] }
+  ],
+  "testing": [
+    { "title": "Testing JavaScript Applications", "provider": "Testing Library", "level": "intermediate", "durationMins": 660, "url": "https://example.edu/courses/testing-js", "skills": [["testing", 1], ["javascript", 0.5], ["debugging", 0.4]] }
+  ],
+  "git": [
+    { "title": "Git Deep Dive: Rebase, Bisect, Reflog", "provider": "GitHub Learning", "level": "intermediate", "durationMins": 240, "url": "https://example.edu/courses/git-deep-dive", "skills": [["git", 1]] }
+  ],
+  "aws": [
+    { "title": "AWS Cloud Practitioner to Solutions Architect", "provider": "A Cloud Guru", "level": "beginner", "durationMins": 1500, "url": "https://example.edu/courses/aws-saa", "skills": [["aws", 1], ["terraform", 0.3]] }
+  ],
+  "security": [
+    { "title": "Web Application Security: OWASP Top 10 Hands-On", "provider": "PortSwigger Academy", "level": "intermediate", "durationMins": 600, "url": "https://example.edu/courses/owasp-top-10", "skills": [["security", 1], ["authentication", 0.6]] }
+  ]
+}

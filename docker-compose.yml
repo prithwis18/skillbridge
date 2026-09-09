@@ -1,0 +1,117 @@
+name: sih
+
+x-node-build: &node-build
+  context: .
+  dockerfile: Dockerfile
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sih}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sih}
+      POSTGRES_DB: ${POSTGRES_DB:-sih}
+    ports: ['${POSTGRES_PORT:-5433}:5432']
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-sih} -d ${POSTGRES_DB:-sih}']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    ports: ['${REDIS_PORT:-6380}:6379']
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  hub:
+    build: { <<: *node-build, args: { APP: hub } }
+    # Single DB writer, so migrations run here with no race against other services.
+    command: sh -c "pnpm --filter @sih/db migrate && pnpm --filter @sih/db seed && pnpm start"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-sih}:${POSTGRES_PASSWORD:-sih}@postgres:5432/${POSTGRES_DB:-sih}
+      REDIS_URL: redis://redis:6379
+      MIN_COVERAGE: ${MIN_COVERAGE:-2}
+      SCRAPE_WAIT_MS: ${SCRAPE_WAIT_MS:-8000}
+      MAX_RECOMMENDATIONS: ${MAX_RECOMMENDATIONS:-12}
+    ports: ['3001:3001']
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3001/health']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  scraper:
+    build: { <<: *node-build, args: { APP: scraper } }
+    environment:
+      REDIS_URL: redis://redis:6379
+    ports: ['3002:3002']
+    depends_on:
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3002/health']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  ingestor:
+    build: { <<: *node-build, args: { APP: ingestor } }
+    environment:
+      REDIS_URL: redis://redis:6379
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-dev-admin-token}
+    ports: ['3003:3003']
+    depends_on:
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3003/health']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  qna:
+    build: { <<: *node-build, args: { APP: qna } }
+    environment:
+      REDIS_URL: redis://redis:6379
+      HUB_URL: http://hub:3001
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.groq.com/openai/v1}
+      LLM_MODEL: ${LLM_MODEL:-qwen/qwen3.8-27b}
+      LLM_API_KEY: ${LLM_API_KEY:?set LLM_API_KEY in .env}
+      MAX_QUESTIONS: ${MAX_QUESTIONS:-5}
+    ports: ['3004:3004']
+    depends_on:
+      redis: { condition: service_healthy }
+      hub: { condition: service_healthy }
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3004/health']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      <<: *node-build
+      args:
+        APP: web
+        # Next inlines these at build time, so they are build args, not runtime env.
+        NEXT_PUBLIC_QNA_URL: ${NEXT_PUBLIC_QNA_URL:-http://localhost:3004}
+        NEXT_PUBLIC_INGESTOR_URL: ${NEXT_PUBLIC_INGESTOR_URL:-http://localhost:3003}
+        NEXT_PUBLIC_HUB_URL: ${NEXT_PUBLIC_HUB_URL:-http://localhost:3001}
+    ports: ['3000:3000']
+    depends_on:
+      qna: { condition: service_started }
+      ingestor: { condition: service_started }
+      hub: { condition: service_started }
+
+volumes:
+  pgdata:
+  redisdata:

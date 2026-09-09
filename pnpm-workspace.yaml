@@ -1,3 +1,9 @@
-minimumReleaseAgeExclude:
-  - '@next/*'
-  - next
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# esbuild's postinstall fetches its native binary (tsx, drizzle-kit).
+allowBuilds:
+  esbuild: true
+  sharp: true
+  "@tailwindcss/oxide": true

@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+/* Design tokens — everything else is utilities. */
+@theme {
+  --color-ground: #e6e7e9;
+  --color-card: #ffffff;
+  --color-ink: #12141a;
+  --color-ink-soft: #6b7280;
+  --color-ink-faint: #9ca3af;
+  --color-line: #e5e7eb;
+  --color-fill: #f4f5f7;
+  --color-accent: #c5f24e;
+  --color-accent-ink: #16200a;
+  --color-accent-soft: #eef6e4;
+  --color-accent-edge: #b7e07a;
+  --color-accent-deep: #33691e;
+  --color-check: #7ac943;
+
+  --radius-card: 28px;
+  --shadow-card: 0 24px 60px -20px rgb(16 20 30 / 0.22), 0 4px 12px -4px rgb(16 20 30 / 0.08);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
+}
+
+@layer base {
+  html, body { height: 100%; }
+  body {
+    background: var(--color-ground);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer utilities {
+  /* Motion is decoration; honour the OS setting. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
